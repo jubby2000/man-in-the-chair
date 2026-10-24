@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { Panel } from '../components/Panel';
+import type { PanelComponentProps } from '../types';
 import { useStore } from '../store/useStore';
 
 // Encounter-multiplier table (DMG) keyed by number of monsters.
@@ -23,7 +24,7 @@ const THRESHOLDS: Record<number, [number, number, number, number]> = {
   19: [2400, 4900, 7300, 10900], 20: [2800, 5700, 8500, 12700],
 };
 
-export function EncounterPanel() {
+export function EncounterPanel({ onClose }: PanelComponentProps) {
   const encounter = useStore((s) => s.encounter);
   const party = useStore((s) => s.party);
   const updateEncounterCount = useStore((s) => s.updateEncounterCount);
@@ -60,6 +61,7 @@ export function EncounterPanel() {
 
   return (
     <Panel
+      onClose={onClose}
       title="Encounter Builder"
       flush
       tools={

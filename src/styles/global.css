@@ -810,19 +810,29 @@ select.select {
   background: var(--accent-soft);
 }
 
-/* ---- Panel remove button (top-right, over header) ---- */
-.panel-close {
-  position: absolute;
-  top: 8px;
-  right: 10px;
-  z-index: 5;
-  opacity: 0;
+/* ---- Panel remove button (lives in the header tools, never over content) ---- */
+.panel-close-btn {
   color: var(--text-faint);
-  transition: opacity 0.12s;
+  opacity: 0;
+  transition: opacity 0.12s, color 0.12s;
 }
-.react-grid-item:hover .panel-close {
+.panel:hover .panel-close-btn {
   opacity: 1;
 }
-.panel-close:hover {
+.panel-close-btn:hover {
   color: var(--danger);
+}
+
+.dice-overlay .rolling-hint {
+  position: absolute;
+  bottom: 40px;
+  color: var(--text-dim);
+  font-size: 16px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  animation: pulse-hint 1s ease-in-out infinite;
+}
+@keyframes pulse-hint {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
 }

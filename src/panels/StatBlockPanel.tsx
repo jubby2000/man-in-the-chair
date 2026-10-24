@@ -1,6 +1,6 @@
 import { Panel } from '../components/Panel';
+import type { Ability, NamedEntry, PanelComponentProps } from '../types';
 import { useStore } from '../store/useStore';
-import type { Ability, NamedEntry } from '../types';
 
 const mod = (score: number) => {
   const m = Math.floor((score - 10) / 2);
@@ -23,7 +23,7 @@ function Entries({ title, items }: { title?: string; items: NamedEntry[] }) {
   );
 }
 
-export function StatBlockPanel() {
+export function StatBlockPanel({ onClose }: PanelComponentProps) {
   const monster = useStore((s) =>
     s.compendium.monsters.find((m) => m.id === s.selectedMonsterId),
   );
@@ -47,6 +47,7 @@ export function StatBlockPanel() {
 
   return (
     <Panel
+      onClose={onClose}
       title="Stat Block"
       tools={
         <>

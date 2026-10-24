@@ -1,34 +1,20 @@
 import { useState } from 'react';
 import { Panel } from '../components/Panel';
+import type { PanelComponentProps } from '../types';
 import { useStore } from '../store/useStore';
-import type { RollResult } from '../lib/dice';
 
 const QUICK = ['d20', 'd12', 'd10', 'd8', 'd6', 'd4', 'd100', '2d6'];
 
-function describe(r: RollResult): string {
-  const parts = r.dice.map((d) => {
-    const base = `${d.sign < 0 ? '−' : ''}${d.count}d${d.sides}`;
-    const rolls = `[${d.results.join(', ')}]${d.keep ? ` keep ${d.keep.mode}${d.keep.n}` : ''}`;
-    return `${base} ${rolls}`;
-  });
-  if (r.modifier) parts.push(`${r.modifier >= 0 ? '+' : ''}${r.modifier}`);
-  return parts.join('  ');
-}
-
-export function DicePanel() {
+export function DicePanel({ onClose }: PanelComponentProps) {
   const rollDice = useStore((s) => s.rollDice);
+  const rollLog = useStore((s) => s.rollLog);
   const [input, setInput] = useState('');
-  const [history, setHistory] = useState<RollResult[]>([]);
   const [error, setError] = useState(false);
 
   const roll = (notation: string) => {
-    const result = rollDice(notation);
-    if (!result) {
-      setError(true);
-      return;
-    }
-    setError(false);
-    setHistory((h) => [result, ...h].slice(0, 20));
+    const result = rollDice(notation); // opens the physics overlay
+    if (!result) setError(true);
+    else setError(false);
   };
 
   const onSubmit = (e: React.FormEvent) => {
@@ -37,7 +23,7 @@ export function DicePanel() {
   };
 
   return (
-    <Panel title="Dice">
+    <Panel onClose={onClose} title="Dice">
       <div className="dice-panel">
         <form className="dice-input-row" onSubmit={onSubmit}>
           <input
@@ -68,14 +54,16 @@ export function DicePanel() {
           ))}
         </div>
         <div className="roll-log">
-          {history.length === 0 ? (
+          {rollLog.length === 0 ? (
             <div className="empty" style={{ padding: '12px 0' }}>
-              Roll history appears here.
+              Rolls land in a physics tray — the total comes from the faces that settle.
             </div>
           ) : (
-            history.map((r, i) => (
-              <div className="line" key={i}>
-                <span style={{ color: 'var(--text-faint)' }}>{describe(r)}</span>
+            rollLog.map((r, i) => (
+              <div className="line" key={r.at + '-' + i}>
+                <span style={{ color: 'var(--text-faint)' }}>
+                  {r.notation.toUpperCase()} · [{r.values.join(', ')}]
+                </span>
                 <span className="total">{r.total}</span>
               </div>
             ))

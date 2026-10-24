@@ -12,13 +12,15 @@ import { EncounterPanel } from './panels/EncounterPanel';
 import { RulesPanel } from './panels/RulesPanel';
 import { PartyPanel } from './panels/PartyPanel';
 import { ImportDialog } from './components/ImportDialog';
+import { ThemePicker } from './components/ThemePicker';
+import { useThemeStore } from './theme/useThemeStore';
 
 // 3D overlay (three.js) is heavy — load it only when a roll happens.
 const DiceOverlay = lazy(() =>
   import('./panels/DiceOverlay').then((m) => ({ default: m.DiceOverlay })),
 );
 
-const PANELS: Record<PanelType, () => JSX.Element> = {
+const PANELS: Record<PanelType, (props: { onClose?: () => void }) => JSX.Element> = {
   compendium: CompendiumPanel,
   statblock: StatBlockPanel,
   initiative: InitiativePanel,
@@ -56,16 +58,13 @@ export default function App() {
   const removePreset = useStore((s) => s.removePreset);
 
   const [showImport, setShowImport] = useState(false);
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const initTheme = useThemeStore((s) => s.init);
   const width = useContainerWidth();
 
   useEffect(() => {
     void init();
-  }, [init]);
-
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-  }, [theme]);
+    void initTheme();
+  }, [init, initTheme]);
 
   const active = presets.find((p) => p.id === activePresetId) ?? presets[0];
 
@@ -188,13 +187,7 @@ export default function App() {
         <button className="btn" onClick={() => setShowImport(true)}>
           Import
         </button>
-        <button
-          className="btn icon"
-          title="Toggle theme"
-          onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
-        >
-          {theme === 'dark' ? '☀' : '☾'}
-        </button>
+        <ThemePicker />
       </div>
 
       <div className="grid-wrap">
@@ -212,15 +205,8 @@ export default function App() {
           {(active?.items ?? []).map((it) => {
             const PanelComp = PANELS[it.panel];
             return (
-              <div key={it.i} style={{ position: 'relative' }}>
-                <PanelComp />
-                <button
-                  className="btn sm ghost panel-close"
-                  title="Remove panel"
-                  onClick={() => removePanel(it.i)}
-                >
-                  ✕
-                </button>
+              <div key={it.i}>
+                <PanelComp onClose={() => removePanel(it.i)} />
               </div>
             );
           })}

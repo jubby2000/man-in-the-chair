@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Panel } from '../components/Panel';
+import type { PanelComponentProps } from '../types';
 import { getKV, setKV } from '../lib/db';
 
-export function NotesPanel() {
+export function NotesPanel({ onClose }: PanelComponentProps) {
   const [text, setText] = useState('');
   const [loaded, setLoaded] = useState(false);
 
@@ -20,7 +21,7 @@ export function NotesPanel() {
   }, [text, loaded]);
 
   return (
-    <Panel title="Notes" flush>
+    <Panel onClose={onClose} title="Notes" flush>
       <textarea
         className="notes-area"
         placeholder="Session notes, secret doors, that NPC's accent…"

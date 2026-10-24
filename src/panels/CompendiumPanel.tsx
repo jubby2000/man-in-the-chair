@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Panel } from '../components/Panel';
+import type { PanelComponentProps } from '../types';
 import { useStore } from '../store/useStore';
 import type { CompendiumKind } from '../types';
 
@@ -11,7 +12,7 @@ const KINDS: { key: CompendiumKind; label: string }[] = [
   { key: 'rules', label: 'Rules' },
 ];
 
-export function CompendiumPanel() {
+export function CompendiumPanel({ onClose }: PanelComponentProps) {
   const compendium = useStore((s) => s.compendium);
   const selectMonster = useStore((s) => s.selectMonster);
   const selectedMonsterId = useStore((s) => s.selectedMonsterId);
@@ -40,7 +41,7 @@ export function CompendiumPanel() {
   };
 
   return (
-    <Panel title="Compendium" flush>
+    <Panel onClose={onClose} title="Compendium" flush>
       <div className="search-row">
         <input
           className="input"

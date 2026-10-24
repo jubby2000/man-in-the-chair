@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Panel } from '../components/Panel';
+import type { PanelComponentProps } from '../types';
 import { useStore } from '../store/useStore';
 
 const CONDITIONS = [
@@ -8,7 +9,7 @@ const CONDITIONS = [
   'Stunned', 'Unconscious', 'Concentrating',
 ];
 
-export function InitiativePanel() {
+export function InitiativePanel({ onClose }: PanelComponentProps) {
   const combatants = useStore((s) => s.combatants);
   const activeTurn = useStore((s) => s.activeTurn);
   const round = useStore((s) => s.round);
@@ -38,6 +39,7 @@ export function InitiativePanel() {
 
   return (
     <Panel
+      onClose={onClose}
       title="Initiative"
       flush
       tools={

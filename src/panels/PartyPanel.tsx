@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Panel } from '../components/Panel';
+import type { PanelComponentProps } from '../types';
 import { useStore } from '../store/useStore';
 import type { PartyMember } from '../types';
 
@@ -12,7 +13,7 @@ const BLANK: Omit<PartyMember, 'id'> = {
   passivePerception: 10,
 };
 
-export function PartyPanel() {
+export function PartyPanel({ onClose }: PanelComponentProps) {
   const party = useStore((s) => s.party);
   const addPartyMember = useStore((s) => s.addPartyMember);
   const removePartyMember = useStore((s) => s.removePartyMember);
@@ -41,6 +42,7 @@ export function PartyPanel() {
 
   return (
     <Panel
+      onClose={onClose}
       title="Party"
       tools={
         <button className="btn sm primary" onClick={() => setEditing({ ...BLANK })}>

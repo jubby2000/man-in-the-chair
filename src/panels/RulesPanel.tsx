@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
 import { Panel } from '../components/Panel';
+import type { PanelComponentProps } from '../types';
 import { useStore } from '../store/useStore';
 
-export function RulesPanel() {
+export function RulesPanel({ onClose }: PanelComponentProps) {
   const rules = useStore((s) => s.compendium.rules);
   const conditions = useStore((s) => s.compendium.conditions);
   const [q, setQ] = useState('');
@@ -24,7 +25,7 @@ export function RulesPanel() {
   }, [rules, conditions, q]);
 
   return (
-    <Panel title="Rules Reference" flush>
+    <Panel onClose={onClose} title="Rules Reference" flush>
       <div className="search-row">
         <input
           className="input"

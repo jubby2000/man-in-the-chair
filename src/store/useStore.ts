@@ -41,6 +41,7 @@ interface AppState {
 
   // dice overlay
   diceOverlay: RollResult | null;
+  rollLog: { notation: string; total: number; values: number[]; at: number }[];
 
   // layout
   presets: LayoutPreset[];
@@ -56,6 +57,7 @@ interface AppState {
   selectMonster: (id: string | null) => void;
 
   rollDice: (notation: string) => RollResult | null;
+  recordLanded: (notation: string, total: number, values: number[]) => void;
   clearDice: () => void;
 
   addCombatant: (c: Omit<Combatant, 'id'>) => void;
@@ -105,6 +107,7 @@ export const useStore = create<AppState>((set, get) => ({
   encounter: [],
   party: [],
   diceOverlay: null,
+  rollLog: [],
   presets: DEFAULT_PRESETS,
   activePresetId: DEFAULT_PRESETS[0].id,
 
@@ -153,6 +156,10 @@ export const useStore = create<AppState>((set, get) => ({
     if (result) set({ diceOverlay: result });
     return result;
   },
+  recordLanded: (notation, total, values) =>
+    set((s) => ({
+      rollLog: [{ notation, total, values, at: Date.now() }, ...s.rollLog].slice(0, 30),
+    })),
   clearDice: () => set({ diceOverlay: null }),
 
   addCombatant: (c) => set((s) => ({ combatants: [...s.combatants, { ...c, id: uid() }] })),

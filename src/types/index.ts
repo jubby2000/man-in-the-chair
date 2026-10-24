@@ -172,3 +172,8 @@ export interface LayoutPreset {
   name: string;
   items: GridItem[];
 }
+
+/** Props every panel component accepts (for the header remove button). */
+export interface PanelComponentProps {
+  onClose?: () => void;
+}
