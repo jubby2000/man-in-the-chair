@@ -1,0 +1,103 @@
+import { useMemo, useState } from 'react';
+import { Panel } from '../components/Panel';
+import { useStore } from '../store/useStore';
+import type { CompendiumKind } from '../types';
+
+const KINDS: { key: CompendiumKind; label: string }[] = [
+  { key: 'monsters', label: 'Monsters' },
+  { key: 'spells', label: 'Spells' },
+  { key: 'items', label: 'Items' },
+  { key: 'conditions', label: 'Conditions' },
+  { key: 'rules', label: 'Rules' },
+];
+
+export function CompendiumPanel() {
+  const compendium = useStore((s) => s.compendium);
+  const selectMonster = useStore((s) => s.selectMonster);
+  const selectedMonsterId = useStore((s) => s.selectedMonsterId);
+  const addToEncounter = useStore((s) => s.addToEncounter);
+  const [kind, setKind] = useState<CompendiumKind>('monsters');
+  const [q, setQ] = useState('');
+
+  const entries = useMemo(() => {
+    const list = compendium[kind] as { id: string; name: string; source?: string }[];
+    const needle = q.trim().toLowerCase();
+    const filtered = needle ? list.filter((e) => e.name.toLowerCase().includes(needle)) : list;
+    return [...filtered].sort((a, b) => a.name.localeCompare(b.name));
+  }, [compendium, kind, q]);
+
+  const meta = (e: any): string => {
+    switch (kind) {
+      case 'monsters':
+        return `CR ${e.cr} · ${e.type}`;
+      case 'spells':
+        return e.level === 0 ? 'Cantrip' : `Lv ${e.level}`;
+      case 'items':
+        return e.rarity || e.category;
+      default:
+        return '';
+    }
+  };
+
+  return (
+    <Panel title="Compendium" flush>
+      <div className="search-row">
+        <input
+          className="input"
+          placeholder={`Search ${kind}…`}
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+        />
+      </div>
+      <div className="kind-tabs">
+        {KINDS.map((k) => (
+          <button
+            key={k.key}
+            className={`kind-tab ${kind === k.key ? 'active' : ''}`}
+            onClick={() => setKind(k.key)}
+          >
+            {k.label}
+            <span style={{ opacity: 0.6 }}> {(compendium[k.key] as unknown[]).length}</span>
+          </button>
+        ))}
+      </div>
+      {entries.length === 0 ? (
+        <div className="empty">No {kind} match “{q}”.</div>
+      ) : (
+        <ul className="list">
+          {entries.map((e) => (
+            <li
+              key={e.id + (e.source ?? '')}
+              className={`list-item ${kind === 'monsters' && e.id === selectedMonsterId ? 'selected' : ''}`}
+              onClick={() => kind === 'monsters' && selectMonster(e.id)}
+            >
+              <span>
+                {e.name}
+                {e.source && e.source !== 'srd' && (
+                  <span className="badge import" style={{ marginLeft: 6 }}>
+                    import
+                  </span>
+                )}
+              </span>
+              <span className="meta" style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                {meta(e)}
+                {kind === 'monsters' && (
+                  <button
+                    className="btn sm"
+                    title="Add to encounter"
+                    onClick={(ev) => {
+                      ev.stopPropagation();
+                      addToEncounter(e as any);
+                    }}
+                  >
+                    +enc
+                  </button>
+                )}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Panel>
+  );
+}
