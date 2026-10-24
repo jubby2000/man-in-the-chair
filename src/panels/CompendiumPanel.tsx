@@ -8,6 +8,10 @@ const KINDS: { key: CompendiumKind; label: string }[] = [
   { key: 'monsters', label: 'Monsters' },
   { key: 'spells', label: 'Spells' },
   { key: 'items', label: 'Items' },
+  { key: 'races', label: 'Races' },
+  { key: 'classes', label: 'Classes' },
+  { key: 'backgrounds', label: 'Backgrounds' },
+  { key: 'feats', label: 'Feats' },
   { key: 'conditions', label: 'Conditions' },
   { key: 'rules', label: 'Rules' },
 ];
@@ -35,6 +39,12 @@ export function CompendiumPanel({ onClose }: PanelComponentProps) {
         return e.level === 0 ? 'Cantrip' : `Lv ${e.level}`;
       case 'items':
         return e.rarity || e.category;
+      case 'races':
+        return e.size || '';
+      case 'classes':
+        return e.hitDice ? `Hit die ${e.hitDice}` : '';
+      case 'feats':
+        return e.prerequisite ? `Prereq: ${e.prerequisite}` : '';
       default:
         return '';
     }
@@ -76,7 +86,7 @@ export function CompendiumPanel({ onClose }: PanelComponentProps) {
                 {e.name}
                 {e.source && e.source !== 'srd' && (
                   <span className="badge import" style={{ marginLeft: 6 }}>
-                    import
+                    {e.source.startsWith('srd+') ? 'SRD + import' : 'import'}
                   </span>
                 )}
               </span>

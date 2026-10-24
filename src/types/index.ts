@@ -40,6 +40,7 @@ export interface Monster {
   conditionImmunities?: string;
   traits: NamedEntry[];
   actions: NamedEntry[];
+  reactions?: NamedEntry[];
   legendaryActions: NamedEntry[];
   /** Provenance: 'srd' for bundled, or the id of a user-imported source. */
   source?: string;
@@ -69,6 +70,12 @@ export interface Item {
   rarity?: string;
   cost?: string;
   weight?: number;
+  /** combat fields (weapons/armor) */
+  damage?: string;
+  damageType?: string;
+  armorClass?: string;
+  properties?: string;
+  magic?: boolean;
   desc: string;
   source?: string;
 }
@@ -88,7 +95,54 @@ export interface Rule {
   source?: string;
 }
 
-export type CompendiumKind = 'monsters' | 'spells' | 'items' | 'conditions' | 'rules';
+export interface Race {
+  id: string;
+  name: string;
+  size: string;
+  speed: string;
+  ability: string;
+  traits: NamedEntry[];
+  desc?: string;
+  source?: string;
+}
+
+export interface CharClass {
+  id: string;
+  name: string;
+  hitDice?: string;
+  proficiencies?: string;
+  savingThrows?: string;
+  spellcastingAbility?: string;
+  features: NamedEntry[];
+  source?: string;
+}
+
+export interface Background {
+  id: string;
+  name: string;
+  proficiencies?: string;
+  traits: NamedEntry[];
+  source?: string;
+}
+
+export interface Feat {
+  id: string;
+  name: string;
+  prerequisite?: string;
+  desc: string;
+  source?: string;
+}
+
+export type CompendiumKind =
+  | 'monsters'
+  | 'spells'
+  | 'items'
+  | 'conditions'
+  | 'rules'
+  | 'races'
+  | 'classes'
+  | 'backgrounds'
+  | 'feats';
 
 export interface Compendium {
   monsters: Monster[];
@@ -96,7 +150,13 @@ export interface Compendium {
   items: Item[];
   conditions: Condition[];
   rules: Rule[];
+  races: Race[];
+  classes: CharClass[];
+  backgrounds: Background[];
+  feats: Feat[];
 }
+
+export type ImportStrategy = 'merge' | 'replace' | 'keep-both';
 
 /** A user-imported compendium stored in IndexedDB. */
 export interface ImportedSource {
@@ -104,6 +164,7 @@ export interface ImportedSource {
   name: string;
   importedAt: number;
   format: 'fightclub-xml' | 'native-json';
+  strategy: ImportStrategy;
   counts: Record<CompendiumKind, number>;
   data: Partial<Compendium>;
 }

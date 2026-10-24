@@ -1,26 +1,30 @@
 import type {
+  Background,
+  CharClass,
   Compendium,
+  CompendiumKind,
   Condition,
   Edition,
+  Feat,
   ImportedSource,
   Item,
   Monster,
+  Race,
   Rule,
   Spell,
 } from '../types';
 import { db } from './db';
+import { COMPENDIUM_KINDS } from './import';
 
 const EMPTY: Compendium = {
-  monsters: [],
-  spells: [],
-  items: [],
-  conditions: [],
-  rules: [],
+  monsters: [], spells: [], items: [], conditions: [], rules: [],
+  races: [], classes: [], backgrounds: [], feats: [],
 };
 
-// Lazily load bundled edition data so initial bundle stays small.
+// Lazily load bundled edition data so the initial bundle stays small. Only the
+// five bundled kinds exist on disk; the rest start empty (import-only).
 async function loadEdition(edition: Edition): Promise<Compendium> {
-  const dir = edition; // folders are named srd51 / srd52
+  const dir = edition;
   const [monsters, spells, items, conditions, rules] = await Promise.all([
     import(`../data/srd/${dir}/monsters.json`).then((m) => m.default as Monster[]),
     import(`../data/srd/${dir}/spells.json`).then((m) => m.default as Spell[]),
@@ -28,33 +32,88 @@ async function loadEdition(edition: Edition): Promise<Compendium> {
     import(`../data/srd/${dir}/conditions.json`).then((m) => m.default as Condition[]),
     import(`../data/srd/${dir}/rules.json`).then((m) => m.default as Rule[]),
   ]);
-  const tag = (arr: { source?: string }[]) => arr.forEach((e) => (e.source = 'srd'));
-  tag(monsters);
-  tag(spells);
-  tag(items);
-  tag(conditions);
-  tag(rules);
-  return { monsters, spells, items, conditions, rules };
+  const result: Compendium = {
+    monsters, spells, items, conditions, rules,
+    races: [], classes: [], backgrounds: [], feats: [],
+  };
+  for (const k of COMPENDIUM_KINDS) {
+    for (const e of result[k] as { source?: string }[]) e.source = 'srd';
+  }
+  return result;
 }
 
-function mergeSources(base: Compendium, sources: ImportedSource[]): Compendium {
-  const merged: Compendium = {
-    monsters: [...base.monsters],
-    spells: [...base.spells],
-    items: [...base.items],
-    conditions: [...base.conditions],
-    rules: [...base.rules],
-  };
-  for (const src of sources) {
-    const d = src.data;
-    if (d.monsters) merged.monsters.push(...d.monsters.map((m) => ({ ...m, source: src.id })));
-    if (d.spells) merged.spells.push(...d.spells.map((s) => ({ ...s, source: src.id })));
-    if (d.items) merged.items.push(...d.items.map((i) => ({ ...i, source: src.id })));
-    if (d.conditions)
-      merged.conditions.push(...d.conditions.map((c) => ({ ...c, source: src.id })));
-    if (d.rules) merged.rules.push(...d.rules.map((r) => ({ ...r, source: src.id })));
+type Named = { id: string; name: string; source?: string };
+
+/**
+ * Apply imported sources on top of the SRD base, honoring each source's
+ * strategy for name collisions:
+ *  - merge:      imported entry augments/overrides the existing one (one entry)
+ *  - replace:    imported entry fully replaces the existing one (one entry)
+ *  - keep-both:  both kept; imported id suffixed so they don't clash
+ */
+function applySources(base: Compendium, sources: ImportedSource[]): Compendium {
+  const out = {} as Compendium;
+  for (const kind of COMPENDIUM_KINDS) {
+    // index by lowercased name for collision checks
+    const byName = new Map<string, Named>();
+    const order: string[] = [];
+    for (const e of base[kind] as Named[]) {
+      const key = e.name.toLowerCase();
+      byName.set(key, { ...e });
+      order.push(key);
+    }
+
+    for (const src of sources) {
+      const incoming = (src.data[kind] as Named[] | undefined) ?? [];
+      for (const raw of incoming) {
+        const entry = { ...raw, source: src.id };
+        const key = entry.name.toLowerCase();
+        const existing = byName.get(key);
+
+        if (!existing) {
+          byName.set(key, entry);
+          order.push(key);
+          continue;
+        }
+        switch (src.strategy ?? 'merge') {
+          case 'replace':
+            byName.set(key, entry);
+            break;
+          case 'merge': {
+            // keep existing fields, fill/override with imported non-empty ones;
+            // tag provenance so the UI can show "SRD + import".
+            const merged = mergeEntry(existing, entry);
+            byName.set(key, merged);
+            break;
+          }
+          case 'keep-both': {
+            const dupKey = `${key}@@${src.id}`;
+            byName.set(dupKey, { ...entry, id: `${entry.id}-${src.id}` });
+            order.push(dupKey);
+            break;
+          }
+        }
+      }
+    }
+    (out[kind] as Named[]) = order.map((k) => byName.get(k)!).filter(Boolean);
   }
-  return merged;
+  return out;
+}
+
+// Shallow-merge an imported entry onto an existing one: imported non-empty
+// scalar/array fields win; provenance becomes a combined marker.
+function mergeEntry(existing: Named, incoming: Named): Named {
+  const merged: Record<string, unknown> = { ...existing };
+  for (const [k, v] of Object.entries(incoming)) {
+    if (k === 'source' || k === 'id') continue;
+    const empty =
+      v === undefined || v === '' || (Array.isArray(v) && v.length === 0);
+    if (!empty) merged[k] = v;
+  }
+  // mark that this entry carries imported data on top of SRD
+  merged.source = existing.source === 'srd' ? `srd+${incoming.source}` : incoming.source;
+  merged.id = existing.id;
+  return merged as Named;
 }
 
 const editionCache = new Map<Edition, Compendium>();
@@ -67,5 +126,24 @@ export async function loadCompendium(edition: Edition): Promise<Compendium> {
     editionCache.set(edition, base);
   }
   const sources = await db.imports.toArray();
-  return mergeSources(base, sources);
+  return applySources(base, sources);
 }
+
+/** Existing names per kind for the current edition (for duplicate detection). */
+export async function existingNames(
+  edition: Edition,
+): Promise<Record<CompendiumKind, Set<string>>> {
+  let base = editionCache.get(edition);
+  if (!base) {
+    base = await loadEdition(edition).catch(() => EMPTY);
+    editionCache.set(edition, base);
+  }
+  const map = {} as Record<CompendiumKind, Set<string>>;
+  for (const k of COMPENDIUM_KINDS) {
+    map[k] = new Set((base[k] as Named[]).map((e) => e.name.toLowerCase()));
+  }
+  return map;
+}
+
+// keep type imports referenced for downstream consumers
+export type { Race, CharClass, Background, Feat };

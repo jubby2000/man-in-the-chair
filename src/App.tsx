@@ -12,6 +12,7 @@ import { EncounterPanel } from './panels/EncounterPanel';
 import { RulesPanel } from './panels/RulesPanel';
 import { PartyPanel } from './panels/PartyPanel';
 import { ImportDialog } from './components/ImportDialog';
+import { Toast } from './components/Toast';
 import { ThemePicker } from './components/ThemePicker';
 import { useThemeStore } from './theme/useThemeStore';
 
@@ -217,6 +218,7 @@ export default function App() {
         <DiceOverlayGate />
       </Suspense>
       {showImport && <ImportDialog onClose={() => setShowImport(false)} />}
+      <Toast />
     </div>
   );
 }

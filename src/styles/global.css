@@ -858,3 +858,58 @@ select.select {
 .dice-mute:hover {
   opacity: 1;
 }
+
+/* ---- Toast ---- */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(16px);
+  background: var(--bg-elev-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: var(--shadow);
+  z-index: 1200;
+  opacity: 0;
+  transition: opacity 0.18s, transform 0.18s;
+  pointer-events: none;
+}
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ---- Import duplicate prompt ---- */
+.dup-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.dup-opt {
+  text-align: left;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 11px 14px;
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  transition: border-color 0.12s, background 0.12s;
+}
+.dup-opt:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.dup-opt b {
+  font-size: 14px;
+}
+.dup-opt span {
+  font-size: 12px;
+  color: var(--text-dim);
+}

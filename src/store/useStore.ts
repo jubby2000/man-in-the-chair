@@ -2,21 +2,26 @@ import { create } from 'zustand';
 import type {
   Combatant,
   Compendium,
+  CompendiumKind,
   Edition,
   EncounterEntry,
   GridItem,
   ImportedSource,
+  ImportStrategy,
   LayoutPreset,
   Monster,
   PartyMember,
 } from '../types';
-import { loadCompendium } from '../lib/compendium';
-import { buildImportedSource } from '../lib/import';
+import { loadCompendium, existingNames } from '../lib/compendium';
+import { buildImportedSource, countDuplicates } from '../lib/import';
 import { db, getKV, setKV } from '../lib/db';
 import { parseAndRoll, type RollResult } from '../lib/dice';
 import { DEFAULT_PRESETS } from './presets';
 
-const EMPTY: Compendium = { monsters: [], spells: [], items: [], conditions: [], rules: [] };
+const EMPTY: Compendium = {
+  monsters: [], spells: [], items: [], conditions: [], rules: [],
+  races: [], classes: [], backgrounds: [], feats: [],
+};
 const uid = () => Math.random().toString(36).slice(2, 10);
 
 interface AppState {
@@ -43,6 +48,10 @@ interface AppState {
   diceOverlay: RollResult | null;
   rollLog: { notation: string; total: number; values: number[]; at: number }[];
 
+  // transient toast
+  toast: { id: number; message: string } | null;
+  showToast: (message: string) => void;
+
   // layout
   presets: LayoutPreset[];
   activePresetId: string;
@@ -51,7 +60,8 @@ interface AppState {
   init: () => Promise<void>;
   setEdition: (e: Edition) => Promise<void>;
   reloadCompendium: () => Promise<void>;
-  importFile: (fileName: string, text: string) => Promise<ImportedSource>;
+  importFile: (fileName: string, text: string, strategy?: ImportStrategy) => Promise<ImportedSource>;
+  previewImport: (fileName: string, text: string) => Promise<{ counts: Record<CompendiumKind, number>; duplicates: number }>;
   removeImport: (id: string) => Promise<void>;
 
   selectMonster: (id: string | null) => void;
@@ -108,6 +118,7 @@ export const useStore = create<AppState>((set, get) => ({
   party: [],
   diceOverlay: null,
   rollLog: [],
+  toast: null,
   presets: DEFAULT_PRESETS,
   activePresetId: DEFAULT_PRESETS[0].id,
 
@@ -137,11 +148,18 @@ export const useStore = create<AppState>((set, get) => ({
     set({ compendium, imports });
   },
 
-  importFile: async (fileName, text) => {
-    const source = buildImportedSource(fileName, text);
+  importFile: async (fileName, text, strategy = 'merge') => {
+    const source = buildImportedSource(fileName, text, strategy);
     await db.imports.put(source);
     await get().reloadCompendium();
     return source;
+  },
+
+  previewImport: async (fileName, text) => {
+    const source = buildImportedSource(fileName, text);
+    const names = await existingNames(get().edition);
+    const duplicates = countDuplicates(source.data, names);
+    return { counts: source.counts, duplicates };
   },
 
   removeImport: async (id) => {
@@ -150,6 +168,8 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   selectMonster: (id) => set({ selectedMonsterId: id }),
+
+  showToast: (message) => set({ toast: { id: Date.now(), message } }),
 
   rollDice: (notation) => {
     const result = parseAndRoll(notation);
@@ -166,6 +186,7 @@ export const useStore = create<AppState>((set, get) => ({
 
   addMonsterToCombat: (m, initiative) =>
     set((s) => ({
+      toast: { id: Date.now(), message: `${m.name} added to combat` },
       combatants: [
         ...s.combatants,
         {
@@ -210,14 +231,17 @@ export const useStore = create<AppState>((set, get) => ({
   addToEncounter: (m) =>
     set((s) => {
       const existing = s.encounter.find((e) => e.monsterId === m.id);
+      const toast = { id: Date.now(), message: `${m.name} added to encounter` };
       if (existing) {
         return {
+          toast,
           encounter: s.encounter.map((e) =>
             e.monsterId === m.id ? { ...e, count: e.count + 1 } : e,
           ),
         };
       }
       return {
+        toast,
         encounter: [
           ...s.encounter,
           { monsterId: m.id, name: m.name, count: 1, cr: m.cr, xp: crToXp(m.cr), source: get().edition },

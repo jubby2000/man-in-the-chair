@@ -103,6 +103,7 @@ export function StatBlockPanel({ onClose }: PanelComponentProps) {
         <hr className="rule" />
         <Entries items={monster.traits} />
         <Entries title="Actions" items={monster.actions} />
+        <Entries title="Reactions" items={monster.reactions ?? []} />
         <Entries title="Legendary Actions" items={monster.legendaryActions} />
       </div>
     </Panel>
