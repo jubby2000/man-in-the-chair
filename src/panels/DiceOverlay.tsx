@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { Canvas, useFrame } from '@react-three/fiber';
+import { Text } from '@react-three/drei';
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 import { useStore } from '../store/useStore';
@@ -15,14 +16,31 @@ const SETTLE_SPEED = 0.2; // below this linear+angular speed a die is "resting"
 const SETTLE_FRAMES = 10; // consecutive calm frames before we lock a value
 const MAX_ROLL_MS = 5000; // hard cap: force-settle after this so UI never hangs
 
-interface DieSpec {
-  sides: number;
-  index: number;
-}
-
-// Shared physics materials so a die<->ground ContactMaterial can control bounce.
+// Shared physics materials so die<->ground / die<->die ContactMaterials control bounce.
 const DIE_MAT = new CANNON.Material('die');
 const GROUND_MAT = new CANNON.Material('ground');
+
+// Per-die-type face colors.
+const DIE_COLORS: Record<number, string> = {
+  4: '#e07a5f',
+  6: '#c86bff',
+  8: '#4dd2c0',
+  10: '#f2c14e',
+  12: '#6ba8ff',
+  20: '#c2f04a',
+  100: '#f2c14e',
+};
+
+interface DieHandle {
+  sides: number;
+  index: number;
+  faces: FaceMap[];
+  body: CANNON.Body;
+}
+
+function rand(a: number, b: number): number {
+  return a + Math.random() * (b - a);
+}
 
 // Build a cannon body approximating the die, sized to its three.js geometry.
 function makeBody(sides: number): CANNON.Body {
@@ -31,13 +49,13 @@ function makeBody(sides: number): CANNON.Body {
   if (sides === 6) {
     shape = new CANNON.Box(new CANNON.Vec3(0.5, 0.5, 0.5));
   } else {
-    // Convex polyhedron from the three geometry for non-cube dice.
     const geo = geometryFor(sides);
     const nonIndexed = geo.index ? geo.toNonIndexed() : geo;
     const pos = nonIndexed.getAttribute('position');
     const verts: CANNON.Vec3[] = [];
     const faces: number[][] = [];
-    const keyOf = (x: number, y: number, z: number) => `${x.toFixed(3)},${y.toFixed(3)},${z.toFixed(3)}`;
+    const keyOf = (x: number, y: number, z: number) =>
+      `${x.toFixed(3)},${y.toFixed(3)},${z.toFixed(3)}`;
     const map = new Map<string, number>();
     for (let i = 0; i < pos.count; i += 3) {
       const tri: number[] = [];
@@ -64,76 +82,90 @@ function makeBody(sides: number): CANNON.Body {
   return body;
 }
 
-// Per-die-type colors so the tray reads at a glance.
-const DIE_COLORS: Record<number, string> = {
-  4: '#e07a5f',
-  6: '#c86bff',
-  8: '#4dd2c0',
-  10: '#f2c14e',
-  12: '#6ba8ff',
-  20: '#c2f04a',
-  100: '#f2c14e',
-};
-
-// Draw numeric labels onto a canvas texture for a die (used on d6 faces where
-// orientation is obvious; other dice rely on color + the readout).
-function numberTexture(n: number, color: string): THREE.CanvasTexture {
-  const size = 128;
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = size;
-  const ctx = canvas.getContext('2d')!;
-  ctx.fillStyle = color;
-  ctx.fillRect(0, 0, size, size);
-  // inset border so edges read as a die, not a flat sticker
-  ctx.strokeStyle = 'rgba(0,0,0,0.35)';
-  ctx.lineWidth = 8;
-  ctx.strokeRect(8, 8, size - 16, size - 16);
-  ctx.fillStyle = '#0a0c0f';
-  ctx.font = 'bold 74px Inter, system-ui, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(String(n), size / 2, size / 2 + 4);
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.anisotropy = 4;
-  tex.colorSpace = THREE.SRGBColorSpace;
-  return tex;
+// Orientation that makes a label's +Z face point outward along `normal`.
+function labelQuaternion(normal: THREE.Vector3): THREE.Quaternion {
+  const q = new THREE.Quaternion();
+  q.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal.clone().normalize());
+  return q;
 }
 
-interface DiceSceneHandle {
-  onSettled: (total: number, values: number[]) => void;
-}
+/** One die: a mesh + a number label on every face, synced to its physics body. */
+function Die({ handle }: { handle: DieHandle }) {
+  const groupRef = useRef<THREE.Group>(null);
+  const color = DIE_COLORS[handle.sides] ?? '#c86bff';
+  const geometry = useMemo(() => geometryFor(handle.sides), [handle.sides]);
+  const labelSize = handle.sides === 20 || handle.sides === 12 ? 0.34 : 0.4;
 
-function DiceScene({ result, onSettled }: { result: RollResult } & DiceSceneHandle) {
-  const { scene } = useThree();
-  const specs = useMemo<DieSpec[]>(
-    () => diceToRender(result).map((d, index) => ({ sides: d.sides, index })),
-    [result],
+  useFrame(() => {
+    const g = groupRef.current;
+    if (!g) return;
+    const b = handle.body;
+    g.position.set(b.position.x, b.position.y, b.position.z);
+    g.quaternion.set(b.quaternion.x, b.quaternion.y, b.quaternion.z, b.quaternion.w);
+  });
+
+  return (
+    <group ref={groupRef}>
+      <mesh geometry={geometry} castShadow>
+        <meshStandardMaterial
+          color={color}
+          emissive={color}
+          emissiveIntensity={0.1}
+          metalness={0.15}
+          roughness={0.45}
+          flatShading
+        />
+      </mesh>
+      {handle.faces.map((f, i) => {
+        // push the label just off the surface so it isn't z-fighting
+        const pos = f.center.clone().add(f.normal.clone().multiplyScalar(0.02));
+        const quat = labelQuaternion(f.normal);
+        return (
+          <Text
+            key={i}
+            position={[pos.x, pos.y, pos.z]}
+            quaternion={quat}
+            fontSize={labelSize}
+            color="#0a0c0f"
+            anchorX="center"
+            anchorY="middle"
+            outlineWidth={0.012}
+            outlineColor="#ffffff"
+          >
+            {f.value}
+          </Text>
+        );
+      })}
+    </group>
   );
+}
 
+function DiceScene({
+  result,
+  onSettled,
+}: {
+  result: RollResult;
+  onSettled: (total: number, values: number[]) => void;
+}) {
+  const specs = useMemo(() => diceToRender(result), [result]);
   const worldRef = useRef<CANNON.World>();
-  const diceRef = useRef<{ body: CANNON.Body; mesh: THREE.Mesh; faces: FaceMap[]; sides: number }[]>([]);
+  const [handles, setHandles] = useState<DieHandle[]>([]);
   const calmFrames = useRef(0);
   const startTime = useRef(performance.now());
   const settled = useRef(false);
 
-  // Build world + dice once per result.
   useEffect(() => {
     const world = new CANNON.World({ gravity: new CANNON.Vec3(0, GRAVITY, 0) });
     world.broadphase = new CANNON.SAPBroadphase(world);
     (world.solver as CANNON.GSSolver).iterations = 14;
     world.allowSleep = true;
 
-    // Contact behavior: this is what actually makes the dice bounce.
-    const contact = new CANNON.ContactMaterial(DIE_MAT, GROUND_MAT, {
-      restitution: RESTITUTION,
-      friction: FRICTION,
-    });
-    world.addContactMaterial(contact);
-    const dieDie = new CANNON.ContactMaterial(DIE_MAT, DIE_MAT, {
-      restitution: RESTITUTION * 0.8,
-      friction: FRICTION,
-    });
-    world.addContactMaterial(dieDie);
+    world.addContactMaterial(
+      new CANNON.ContactMaterial(DIE_MAT, GROUND_MAT, { restitution: RESTITUTION, friction: FRICTION }),
+    );
+    world.addContactMaterial(
+      new CANNON.ContactMaterial(DIE_MAT, DIE_MAT, { restitution: RESTITUTION * 0.8, friction: FRICTION }),
+    );
 
     const ground = new CANNON.Body({ mass: 0, material: GROUND_MAT });
     ground.addShape(new CANNON.Plane());
@@ -141,7 +173,6 @@ function DiceScene({ result, onSettled }: { result: RollResult } & DiceSceneHand
     ground.position.set(0, FLOOR_Y, 0);
     world.addBody(ground);
 
-    // invisible containing walls so dice stay on screen
     const wall = (x: number, z: number, ry: number) => {
       const b = new CANNON.Body({ mass: 0, material: GROUND_MAT });
       b.addShape(new CANNON.Plane());
@@ -154,128 +185,77 @@ function DiceScene({ result, onSettled }: { result: RollResult } & DiceSceneHand
     wall(0, -6, 0);
     wall(0, 6, Math.PI);
 
-    const dice = specs.map((spec) => {
-      const geometry = geometryFor(spec.sides);
-      const faces = faceMapFor(spec.sides, geometry);
-      const base = DIE_COLORS[spec.sides] ?? '#c86bff';
-      const material =
-        spec.sides === 6
-          ? D6_MATERIALS(base)
-          : new THREE.MeshStandardMaterial({
-              color: base,
-              emissive: base,
-              emissiveIntensity: 0.12,
-              metalness: 0.2,
-              roughness: 0.4,
-              flatShading: true,
-              side: THREE.DoubleSide,
-            });
-      const mesh = new THREE.Mesh(geometry, material);
-      mesh.castShadow = true;
-      scene.add(mesh);
-
-      const body = makeBody(spec.sides);
-      // spawn above, spread across x, with a random throw + spin
-      const col = spec.index % 4;
+    const built: DieHandle[] = specs.map((d, index) => {
+      const geometry = geometryFor(d.sides);
+      const faces = faceMapFor(d.sides, geometry);
+      geometry.dispose();
+      const body = makeBody(d.sides);
+      const col = index % 4;
       body.position.set((col - 1.5) * 2.2 + rand(-0.4, 0.4), 5 + Math.random() * 2.5, rand(-1, 1));
       body.velocity.set(rand(-4, 4), rand(-2, 1), rand(-4, 4));
       body.angularVelocity.set(rand(-12, 12), rand(-12, 12), rand(-12, 12));
       body.quaternion.setFromEuler(rand(0, Math.PI), rand(0, Math.PI), rand(0, Math.PI));
-      world.addBody(body);
-
-      // play a clack on meaningful impacts, scaled by impact speed
       body.addEventListener('collide', (e: { contact: CANNON.ContactEquation }) => {
         const v = Math.abs(e.contact.getImpactVelocityAlongNormal());
         if (v > 1.5) playClack(Math.min(1, v / 14));
       });
-
-      return { body, mesh, faces, sides: spec.sides };
+      world.addBody(body);
+      return { sides: d.sides, index, faces, body };
     });
 
     worldRef.current = world;
-    diceRef.current = dice;
     calmFrames.current = 0;
     startTime.current = performance.now();
     settled.current = false;
+    setHandles(built);
 
     return () => {
-      dice.forEach((d) => {
-        scene.remove(d.mesh);
-        d.mesh.geometry.dispose();
-        (Array.isArray(d.mesh.material) ? d.mesh.material : [d.mesh.material]).forEach((m) => m.dispose());
-      });
+      built.forEach((h) => world.removeBody(h.body));
+      setHandles([]);
     };
-  }, [specs, scene]);
+  }, [specs]);
 
   useFrame((_, delta) => {
     const world = worldRef.current;
-    if (!world || settled.current) return;
-    // fixed-step physics for stability & performance
+    if (!world || settled.current || handles.length === 0) return;
     world.step(1 / 60, Math.min(delta, 1 / 30), 3);
 
     let moving = false;
-    for (const d of diceRef.current) {
-      d.mesh.position.set(d.body.position.x, d.body.position.y, d.body.position.z);
-      d.mesh.quaternion.set(
-        d.body.quaternion.x,
-        d.body.quaternion.y,
-        d.body.quaternion.z,
-        d.body.quaternion.w,
-      );
-      const speed = d.body.velocity.length() + d.body.angularVelocity.length();
+    for (const h of handles) {
+      const speed = h.body.velocity.length() + h.body.angularVelocity.length();
       if (speed > SETTLE_SPEED) moving = true;
     }
 
     const elapsed = performance.now() - startTime.current;
-    if (!moving) calmFrames.current += 1;
-    else calmFrames.current = 0;
+    calmFrames.current = moving ? 0 : calmFrames.current + 1;
 
     if (calmFrames.current >= SETTLE_FRAMES || elapsed > MAX_ROLL_MS) {
       settled.current = true;
-      const values = diceRef.current.map((d) => {
+      const values = handles.map((h) => {
         const q = new THREE.Quaternion(
-          d.body.quaternion.x,
-          d.body.quaternion.y,
-          d.body.quaternion.z,
-          d.body.quaternion.w,
+          h.body.quaternion.x,
+          h.body.quaternion.y,
+          h.body.quaternion.z,
+          h.body.quaternion.w,
         );
-        return readUpFace(d.faces, q);
+        return readUpFace(h.faces, q);
       });
-      // Apply the same keep/sign/modifier math the notation specified, but on
-      // the ACTUAL landed faces. We re-run the result's structure over them.
-      const total = totalFromFaces(result, values);
-      onSettled(total, values);
+      onSettled(totalFromFaces(result, values), values);
     }
   });
 
   return (
     <>
-      <hemisphereLight args={['#ffffff', '#2a2a33', 0.9]} />
-      <ambientLight intensity={0.5} />
+      <hemisphereLight args={['#ffffff', '#2a2a33', 0.95]} />
+      <ambientLight intensity={0.55} />
       <directionalLight position={[4, 10, 6]} intensity={1.1} castShadow />
       <directionalLight position={[-5, 6, -4]} intensity={0.7} />
       <pointLight position={[0, -3, 5]} intensity={0.5} color="#c2f04a" />
+      {handles.map((h) => (
+        <Die key={h.index} handle={h} />
+      ))}
     </>
   );
-}
-
-// d6 gets a material per face with its number painted on.
-function D6_MATERIALS(color: string): THREE.MeshStandardMaterial[] {
-  // BoxGeometry face order: +x,-x,+y,-y,+z,-z -> values 3,4,1,6,2,5 (see D6_FACES)
-  const order = [3, 4, 1, 6, 2, 5];
-  return order.map(
-    (n) =>
-      new THREE.MeshStandardMaterial({
-        map: numberTexture(n, color),
-        metalness: 0.2,
-        roughness: 0.4,
-        side: THREE.DoubleSide,
-      }),
-  );
-}
-
-function rand(a: number, b: number): number {
-  return a + Math.random() * (b - a);
 }
 
 // Recompute the roll total from the physically-landed per-die faces, honoring
@@ -303,7 +283,6 @@ export function DiceOverlay() {
   const [landed, setLanded] = useState<{ total: number; values: number[] } | null>(null);
   const [muted, setMuted] = useState(isDiceMuted());
 
-  // reset when a new roll comes in
   useEffect(() => {
     setLanded(null);
   }, [result]);

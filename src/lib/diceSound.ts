@@ -1,10 +1,8 @@
-// Synthesized dice-impact sounds via the Web Audio API. No audio files — a
-// short noise burst through a band-pass filter reads as a die "clack", pitched
-// by impact strength. Fully offline, zero download. Lazily creates the
-// AudioContext on first use (after a user gesture, which a roll always is).
+// Synthesized dice-impact sounds via the Web Audio API. No audio files.
+// Target timbre: hard plastic on wood — a sharp, short click transient plus a
+// brief woody resonance, not a soft papery rustle. Fully offline, zero download.
 
 let ctx: AudioContext | null = null;
-let noiseBuffer: AudioBuffer | null = null;
 let muted = false;
 let lastPlay = 0;
 
@@ -18,51 +16,79 @@ export function isDiceMuted() {
 function ensureContext(): AudioContext | null {
   if (muted) return null;
   if (!ctx) {
-    const AC = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const AC =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     if (!AC) return null;
     ctx = new AC();
   }
   if (ctx.state === 'suspended') void ctx.resume();
-  if (!noiseBuffer) {
-    const len = Math.floor(ctx.sampleRate * 0.08);
-    noiseBuffer = ctx.createBuffer(1, len, ctx.sampleRate);
-    const data = noiseBuffer.getChannelData(0);
-    for (let i = 0; i < len; i++) {
-      // decaying white noise
-      data[i] = (Math.random() * 2 - 1) * (1 - i / len);
-    }
-  }
   return ctx;
 }
 
+// A very short noise buffer used as the "click" attack. Regenerated once.
+let clickBuffer: AudioBuffer | null = null;
+function getClickBuffer(audio: AudioContext): AudioBuffer {
+  if (clickBuffer) return clickBuffer;
+  const len = Math.floor(audio.sampleRate * 0.02); // 20ms
+  const buf = audio.createBuffer(1, len, audio.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) {
+    // fast exponential decay -> a tight tick, not a rustle
+    data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 6);
+  }
+  clickBuffer = buf;
+  return buf;
+}
+
 /**
- * Play one impact. `strength` in ~0..1 scales volume and brightness.
- * Rate-limited so a pile of simultaneous contacts doesn't machine-gun.
+ * Play one impact. `strength` ~0..1 scales volume and brightness.
+ * Two layers: a bright filtered click (plastic surface) + a short triangle
+ * "thock" (wood body). Rate-limited so piles of contacts don't buzz.
  */
 export function playClack(strength = 0.5) {
   const audio = ensureContext();
-  if (!audio || !noiseBuffer) return;
+  if (!audio) return;
   const now = performance.now();
-  if (now - lastPlay < 18) return; // ~55 hits/sec ceiling
+  if (now - lastPlay < 22) return;
   lastPlay = now;
 
-  const s = Math.max(0.08, Math.min(1, strength));
-  const src = audio.createBufferSource();
-  src.buffer = noiseBuffer;
-
-  const filter = audio.createBiquadFilter();
-  filter.type = 'bandpass';
-  filter.frequency.value = 1200 + s * 2600; // harder hits sound brighter
-  filter.Q.value = 1.1;
-
-  const gain = audio.createGain();
+  const s = Math.max(0.1, Math.min(1, strength));
   const t = audio.currentTime;
-  const peak = 0.06 + s * 0.22;
-  gain.gain.setValueAtTime(0, t);
-  gain.gain.linearRampToValueAtTime(peak, t + 0.004);
-  gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.09);
+  const out = audio.createGain();
+  out.gain.value = 0.9;
+  out.connect(audio.destination);
 
-  src.connect(filter).connect(gain).connect(audio.destination);
-  src.start(t);
-  src.stop(t + 0.1);
+  // --- Layer 1: click transient (plastic) ---
+  const click = audio.createBufferSource();
+  click.buffer = getClickBuffer(audio);
+  const hp = audio.createBiquadFilter();
+  hp.type = 'highpass';
+  hp.frequency.value = 1800;
+  const clickGain = audio.createGain();
+  const clickPeak = 0.08 + s * 0.3;
+  clickGain.gain.setValueAtTime(clickPeak, t);
+  clickGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.03);
+  click.connect(hp).connect(clickGain).connect(out);
+  click.start(t);
+  click.stop(t + 0.035);
+
+  // --- Layer 2: woody resonant body (short pitched thock) ---
+  const osc = audio.createOscillator();
+  osc.type = 'triangle';
+  const baseFreq = 220 + s * 120; // harder hits ring a touch higher
+  osc.frequency.setValueAtTime(baseFreq * 1.6, t);
+  osc.frequency.exponentialRampToValueAtTime(baseFreq, t + 0.02);
+  const bp = audio.createBiquadFilter();
+  bp.type = 'bandpass';
+  bp.frequency.value = baseFreq * 2;
+  bp.Q.value = 3.5;
+  const bodyGain = audio.createGain();
+  const bodyPeak = 0.05 + s * 0.14;
+  bodyGain.gain.setValueAtTime(0, t);
+  bodyGain.gain.linearRampToValueAtTime(bodyPeak, t + 0.002);
+  bodyGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.07);
+  osc.connect(bp).connect(bodyGain).connect(out);
+  osc.start(t);
+  osc.stop(t + 0.08);
 }
