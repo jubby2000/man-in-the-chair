@@ -69,11 +69,65 @@ export function parseAndRoll(input: string): RollResult | null {
   return { notation, dice, modifier, total };
 }
 
-/** Flat list of every physical die to animate, with its rolled value. */
-export function diceToRender(result: RollResult): { sides: number; value: number }[] {
-  const out: { sides: number; value: number }[] = [];
-  for (const d of result.dice) {
-    for (const v of d.results) out.push({ sides: d.sides, value: v });
-  }
+/** A physical die to animate. A d100 is rendered as two real d10s. */
+export interface RenderDie {
+  sides: number; // physical geometry sides (100 -> two 10s)
+  termIndex: number; // which RollResult.dice term it belongs to
+  role: 'single' | 'tens' | 'ones';
+}
+
+/** Flat list of every physical die to animate. d100 expands to tens+ones d10s. */
+export function diceToRender(result: RollResult): RenderDie[] {
+  const out: RenderDie[] = [];
+  result.dice.forEach((d, termIndex) => {
+    for (let n = 0; n < d.count; n++) {
+      if (d.sides === 100) {
+        out.push({ sides: 10, termIndex, role: 'tens' });
+        out.push({ sides: 10, termIndex, role: 'ones' });
+      } else {
+        out.push({ sides: d.sides, termIndex, role: 'single' });
+      }
+    }
+  });
   return out;
+}
+
+/**
+ * Combine physically-read face values (one per RenderDie, in the same order)
+ * into the roll total, honoring each term's sign, keep rule, and d100 pairing.
+ * d10 faces are read 0..9; a single d10 shows 0..9 but totals as 1..10 only when
+ * rolled as a plain d10 — here we keep raw faces and let percentile pairing or
+ * the die's own value table apply.
+ */
+export function combineFaces(result: RollResult, render: RenderDie[], faces: number[]): number {
+  let total = 0;
+  result.dice.forEach((term, termIndex) => {
+    // gather this term's physical dice (in order) and their faces
+    const idxs = render
+      .map((r, i) => ({ r, i }))
+      .filter((x) => x.r.termIndex === termIndex);
+    const values: number[] = [];
+    for (let k = 0; k < idxs.length; ) {
+      const cur = idxs[k];
+      if (cur.r.role === 'tens') {
+        const tensFace = faces[cur.i]; // 0..9
+        const onesFace = faces[idxs[k + 1].i]; // 0..9
+        const pct = tensFace * 10 + onesFace;
+        values.push(pct === 0 ? 100 : pct);
+        k += 2;
+      } else {
+        // a plain d10 face is 0..9 -> represents 1..10 (0 == 10)
+        const f = faces[cur.i];
+        values.push(term.sides === 10 ? (f === 0 ? 10 : f) : f);
+        k += 1;
+      }
+    }
+    let kept = values;
+    if (term.keep) {
+      const sorted = [...values].sort((a, b) => (term.keep!.mode === 'h' ? b - a : a - b));
+      kept = sorted.slice(0, term.keep.n);
+    }
+    total += term.sign * kept.reduce((s, x) => s + x, 0);
+  });
+  return total + result.modifier;
 }

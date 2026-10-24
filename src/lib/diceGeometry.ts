@@ -71,10 +71,45 @@ function polyhedronFaces(geometry: THREE.BufferGeometry, sides: number): FaceMap
 
 const cache = new Map<number, FaceMap[]>();
 
+// Exact 10-face map for the pentagonal trapezohedron, built from the same
+// construction as d10Geometry so we always get 10 kite faces (triangle-normal
+// grouping would split each non-coplanar kite into two).
+function d10Faces(radius = 0.85): FaceMap[] {
+  const top = new THREE.Vector3(0, radius, 0);
+  const bottom = new THREE.Vector3(0, -radius, 0);
+  const ringY = radius * 0.105;
+  const ringR = radius * 0.92;
+  const upper: THREE.Vector3[] = [];
+  const lower: THREE.Vector3[] = [];
+  for (let i = 0; i < 5; i++) {
+    const aU = (i / 5) * Math.PI * 2;
+    const aL = aU + Math.PI / 5;
+    upper.push(new THREE.Vector3(Math.cos(aU) * ringR, ringY, Math.sin(aU) * ringR));
+    lower.push(new THREE.Vector3(Math.cos(aL) * ringR, -ringY, Math.sin(aL) * ringR));
+  }
+  const faces: FaceMap[] = [];
+  // Standard d10 values 0..9. We alternate around the die so adjacent kites
+  // aren't sequential (as on a real d10). Top kites get even-ish, bottom odd.
+  const topVals = [0, 2, 4, 6, 8];
+  const botVals = [1, 3, 5, 7, 9];
+  for (let i = 0; i < 5; i++) {
+    const next = (i + 1) % 5;
+    // top kite: top, upper[i], lower[i], upper[next]
+    const tc = new THREE.Vector3()
+      .add(top).add(upper[i]).add(lower[i]).add(upper[next]).multiplyScalar(0.25);
+    faces.push({ normal: tc.clone().normalize(), center: tc, value: topVals[i] });
+    // bottom kite: bottom, lower[i], upper[next], lower[next]
+    const bc = new THREE.Vector3()
+      .add(bottom).add(lower[i]).add(upper[next]).add(lower[next]).multiplyScalar(0.25);
+    faces.push({ normal: bc.clone().normalize(), center: bc, value: botVals[i] });
+  }
+  return faces;
+}
+
 export function faceMapFor(sides: number, geometry: THREE.BufferGeometry): FaceMap[] {
   const cached = cache.get(sides);
   if (cached) return cached;
-  const map = sides === 6 ? D6_FACES : polyhedronFaces(geometry, sides);
+  const map = sides === 6 ? D6_FACES : sides === 10 ? d10Faces(0.85) : polyhedronFaces(geometry, sides);
   cache.set(sides, map);
   return map;
 }
@@ -97,6 +132,45 @@ export function readUpFace(faces: FaceMap[], quaternion: THREE.Quaternion): numb
   return best.value;
 }
 
+/** A pentagonal trapezohedron: the real 10-faced d10 shape (10 kite faces). */
+function d10Geometry(radius = 0.85): THREE.BufferGeometry {
+  // Two apex points and two rings of 5 vertices, offset by 36°, at +/- a small
+  // height — the standard d10 construction.
+  const top = new THREE.Vector3(0, radius, 0);
+  const bottom = new THREE.Vector3(0, -radius, 0);
+  const ringY = radius * 0.105;
+  const ringR = radius * 0.92;
+  const upper: THREE.Vector3[] = [];
+  const lower: THREE.Vector3[] = [];
+  for (let i = 0; i < 5; i++) {
+    const aU = (i / 5) * Math.PI * 2;
+    const aL = aU + Math.PI / 5; // offset 36°
+    upper.push(new THREE.Vector3(Math.cos(aU) * ringR, ringY, Math.sin(aU) * ringR));
+    lower.push(new THREE.Vector3(Math.cos(aL) * ringR, -ringY, Math.sin(aL) * ringR));
+  }
+
+  const positions: number[] = [];
+  const pushTri = (a: THREE.Vector3, b: THREE.Vector3, c: THREE.Vector3) => {
+    positions.push(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z);
+  };
+
+  // Each kite face = two triangles. 5 kites around the top apex, 5 around bottom.
+  for (let i = 0; i < 5; i++) {
+    const next = (i + 1) % 5;
+    // top kite: top apex -> upper[i] -> lower[i] -> upper[next]
+    pushTri(top, upper[i], lower[i]);
+    pushTri(top, lower[i], upper[next]);
+    // bottom kite: bottom apex -> lower[i] -> upper[next] -> lower[next]
+    pushTri(bottom, lower[i], upper[next]);
+    pushTri(bottom, upper[next], lower[next]);
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geo.computeVertexNormals();
+  return geo;
+}
+
 /** Geometry for each die type (also used as the physics collision proxy). */
 export function geometryFor(sides: number): THREE.BufferGeometry {
   switch (sides) {
@@ -106,9 +180,11 @@ export function geometryFor(sides: number): THREE.BufferGeometry {
       return new THREE.BoxGeometry(1, 1, 1);
     case 8:
       return new THREE.OctahedronGeometry(0.8);
+    case 10:
+      return d10Geometry(0.85);
     case 12:
       return new THREE.DodecahedronGeometry(0.78);
     default:
-      return new THREE.IcosahedronGeometry(0.8); // d10, d20, d100
+      return new THREE.IcosahedronGeometry(0.8); // d20 (and d100 handled as 2×d10)
   }
 }

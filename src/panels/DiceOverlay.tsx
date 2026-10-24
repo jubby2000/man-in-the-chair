@@ -4,7 +4,7 @@ import { Text } from '@react-three/drei';
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 import { useStore } from '../store/useStore';
-import { diceToRender, type RollResult } from '../lib/dice';
+import { diceToRender, combineFaces, type RollResult, type RenderDie } from '../lib/dice';
 import { faceMapFor, geometryFor, readUpFace, type FaceMap } from '../lib/diceGeometry';
 import { playClack, setDiceMuted, isDiceMuted } from '../lib/diceSound';
 
@@ -36,6 +36,7 @@ interface DieHandle {
   index: number;
   faces: FaceMap[];
   body: CANNON.Body;
+  render: RenderDie;
 }
 
 function rand(a: number, b: number): number {
@@ -200,7 +201,7 @@ function DiceScene({
         if (v > 1.5) playClack(Math.min(1, v / 14));
       });
       world.addBody(body);
-      return { sides: d.sides, index, faces, body };
+      return { sides: d.sides, index, faces, body, render: d };
     });
 
     worldRef.current = world;
@@ -231,7 +232,8 @@ function DiceScene({
 
     if (calmFrames.current >= SETTLE_FRAMES || elapsed > MAX_ROLL_MS) {
       settled.current = true;
-      const values = handles.map((h) => {
+      // raw up-face per physical die, in handle order
+      const rawFaces = handles.map((h) => {
         const q = new THREE.Quaternion(
           h.body.quaternion.x,
           h.body.quaternion.y,
@@ -240,7 +242,11 @@ function DiceScene({
         );
         return readUpFace(h.faces, q);
       });
-      onSettled(totalFromFaces(result, values), values);
+      const renderDice = handles.map((h) => h.render);
+      const total = combineFaces(result, renderDice, rawFaces);
+      // Display values: pair up d100 tens/ones into one percentile reading.
+      const display = displayFaces(renderDice, rawFaces);
+      onSettled(total, display);
     }
   });
 
@@ -258,22 +264,22 @@ function DiceScene({
   );
 }
 
-// Recompute the roll total from the physically-landed per-die faces, honoring
-// the notation's keep-highest/lowest and flat modifier.
-function totalFromFaces(result: RollResult, faces: number[]): number {
-  let total = 0;
-  let cursor = 0;
-  for (const term of result.dice) {
-    const rolled = faces.slice(cursor, cursor + term.count);
-    cursor += term.count;
-    let kept = rolled;
-    if (term.keep) {
-      const sorted = [...rolled].sort((a, b) => (term.keep!.mode === 'h' ? b - a : a - b));
-      kept = sorted.slice(0, term.keep.n);
+// Collapse the raw per-physical-die faces into reader-friendly values: a d100
+// pair (tens+ones) becomes one percentile number; a plain d10's 0 reads as 10.
+function displayFaces(render: RenderDie[], raw: number[]): number[] {
+  const out: number[] = [];
+  for (let i = 0; i < render.length; ) {
+    const r = render[i];
+    if (r.role === 'tens') {
+      const pct = raw[i] * 10 + raw[i + 1];
+      out.push(pct === 0 ? 100 : pct);
+      i += 2;
+    } else {
+      out.push(r.sides === 10 && raw[i] === 0 ? 10 : raw[i]);
+      i += 1;
     }
-    total += term.sign * kept.reduce((s, x) => s + x, 0);
   }
-  return total + result.modifier;
+  return out;
 }
 
 export function DiceOverlay() {
