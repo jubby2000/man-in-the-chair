@@ -5,21 +5,28 @@ import * as CANNON from 'cannon-es';
 import { useStore } from '../store/useStore';
 import { diceToRender, type RollResult } from '../lib/dice';
 import { faceMapFor, geometryFor, readUpFace, type FaceMap } from '../lib/diceGeometry';
+import { playClack, setDiceMuted, isDiceMuted } from '../lib/diceSound';
 
-const GRAVITY = -32;
+const GRAVITY = -30;
 const FLOOR_Y = -4;
-const SETTLE_SPEED = 0.18; // below this linear+angular speed a die is "resting"
-const SETTLE_FRAMES = 8; // consecutive calm frames before we lock a value
-const MAX_ROLL_MS = 4500; // hard cap: force-settle after this so UI never hangs
+const RESTITUTION = 0.55; // bounciness (0 = dead, 1 = perfectly elastic)
+const FRICTION = 0.25;
+const SETTLE_SPEED = 0.2; // below this linear+angular speed a die is "resting"
+const SETTLE_FRAMES = 10; // consecutive calm frames before we lock a value
+const MAX_ROLL_MS = 5000; // hard cap: force-settle after this so UI never hangs
 
 interface DieSpec {
   sides: number;
   index: number;
 }
 
+// Shared physics materials so a die<->ground ContactMaterial can control bounce.
+const DIE_MAT = new CANNON.Material('die');
+const GROUND_MAT = new CANNON.Material('ground');
+
 // Build a cannon body approximating the die, sized to its three.js geometry.
 function makeBody(sides: number): CANNON.Body {
-  const body = new CANNON.Body({ mass: 1, material: new CANNON.Material({ restitution: 0.3, friction: 0.4 }) });
+  const body = new CANNON.Body({ mass: 1, material: DIE_MAT });
   let shape: CANNON.Shape;
   if (sides === 6) {
     shape = new CANNON.Box(new CANNON.Vec3(0.5, 0.5, 0.5));
@@ -57,8 +64,19 @@ function makeBody(sides: number): CANNON.Body {
   return body;
 }
 
-// Draw numeric labels onto a canvas texture for a die (best-effort, used on d6
-// faces where orientation is obvious; others rely on color + the readout).
+// Per-die-type colors so the tray reads at a glance.
+const DIE_COLORS: Record<number, string> = {
+  4: '#e07a5f',
+  6: '#c86bff',
+  8: '#4dd2c0',
+  10: '#f2c14e',
+  12: '#6ba8ff',
+  20: '#c2f04a',
+  100: '#f2c14e',
+};
+
+// Draw numeric labels onto a canvas texture for a die (used on d6 faces where
+// orientation is obvious; other dice rely on color + the readout).
 function numberTexture(n: number, color: string): THREE.CanvasTexture {
   const size = 128;
   const canvas = document.createElement('canvas');
@@ -66,13 +84,18 @@ function numberTexture(n: number, color: string): THREE.CanvasTexture {
   const ctx = canvas.getContext('2d')!;
   ctx.fillStyle = color;
   ctx.fillRect(0, 0, size, size);
+  // inset border so edges read as a die, not a flat sticker
+  ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+  ctx.lineWidth = 8;
+  ctx.strokeRect(8, 8, size - 16, size - 16);
   ctx.fillStyle = '#0a0c0f';
-  ctx.font = 'bold 72px Inter, sans-serif';
+  ctx.font = 'bold 74px Inter, system-ui, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(String(n), size / 2, size / 2 + 4);
   const tex = new THREE.CanvasTexture(canvas);
   tex.anisotropy = 4;
+  tex.colorSpace = THREE.SRGBColorSpace;
   return tex;
 }
 
@@ -97,10 +120,22 @@ function DiceScene({ result, onSettled }: { result: RollResult } & DiceSceneHand
   useEffect(() => {
     const world = new CANNON.World({ gravity: new CANNON.Vec3(0, GRAVITY, 0) });
     world.broadphase = new CANNON.SAPBroadphase(world);
-    (world.solver as CANNON.GSSolver).iterations = 12;
+    (world.solver as CANNON.GSSolver).iterations = 14;
     world.allowSleep = true;
 
-    const ground = new CANNON.Body({ mass: 0, material: new CANNON.Material({ restitution: 0.2, friction: 0.5 }) });
+    // Contact behavior: this is what actually makes the dice bounce.
+    const contact = new CANNON.ContactMaterial(DIE_MAT, GROUND_MAT, {
+      restitution: RESTITUTION,
+      friction: FRICTION,
+    });
+    world.addContactMaterial(contact);
+    const dieDie = new CANNON.ContactMaterial(DIE_MAT, DIE_MAT, {
+      restitution: RESTITUTION * 0.8,
+      friction: FRICTION,
+    });
+    world.addContactMaterial(dieDie);
+
+    const ground = new CANNON.Body({ mass: 0, material: GROUND_MAT });
     ground.addShape(new CANNON.Plane());
     ground.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
     ground.position.set(0, FLOOR_Y, 0);
@@ -108,7 +143,7 @@ function DiceScene({ result, onSettled }: { result: RollResult } & DiceSceneHand
 
     // invisible containing walls so dice stay on screen
     const wall = (x: number, z: number, ry: number) => {
-      const b = new CANNON.Body({ mass: 0 });
+      const b = new CANNON.Body({ mass: 0, material: GROUND_MAT });
       b.addShape(new CANNON.Plane());
       b.quaternion.setFromEuler(0, ry, 0);
       b.position.set(x, 0, z);
@@ -122,16 +157,18 @@ function DiceScene({ result, onSettled }: { result: RollResult } & DiceSceneHand
     const dice = specs.map((spec) => {
       const geometry = geometryFor(spec.sides);
       const faces = faceMapFor(spec.sides, geometry);
-      const crit = spec.sides === 20;
-      const base = '#c86bff';
+      const base = DIE_COLORS[spec.sides] ?? '#c86bff';
       const material =
         spec.sides === 6
           ? D6_MATERIALS(base)
           : new THREE.MeshStandardMaterial({
               color: base,
-              metalness: 0.25,
-              roughness: 0.35,
+              emissive: base,
+              emissiveIntensity: 0.12,
+              metalness: 0.2,
+              roughness: 0.4,
               flatShading: true,
+              side: THREE.DoubleSide,
             });
       const mesh = new THREE.Mesh(geometry, material);
       mesh.castShadow = true;
@@ -145,7 +182,13 @@ function DiceScene({ result, onSettled }: { result: RollResult } & DiceSceneHand
       body.angularVelocity.set(rand(-12, 12), rand(-12, 12), rand(-12, 12));
       body.quaternion.setFromEuler(rand(0, Math.PI), rand(0, Math.PI), rand(0, Math.PI));
       world.addBody(body);
-      void crit;
+
+      // play a clack on meaningful impacts, scaled by impact speed
+      body.addEventListener('collide', (e: { contact: CANNON.ContactEquation }) => {
+        const v = Math.abs(e.contact.getImpactVelocityAlongNormal());
+        if (v > 1.5) playClack(Math.min(1, v / 14));
+      });
+
       return { body, mesh, faces, sides: spec.sides };
     });
 
@@ -207,9 +250,11 @@ function DiceScene({ result, onSettled }: { result: RollResult } & DiceSceneHand
 
   return (
     <>
-      <ambientLight intensity={0.55} />
-      <directionalLight position={[4, 10, 6]} intensity={1.2} castShadow />
-      <pointLight position={[-6, 4, 4]} intensity={0.6} color="#c2f04a" />
+      <hemisphereLight args={['#ffffff', '#2a2a33', 0.9]} />
+      <ambientLight intensity={0.5} />
+      <directionalLight position={[4, 10, 6]} intensity={1.1} castShadow />
+      <directionalLight position={[-5, 6, -4]} intensity={0.7} />
+      <pointLight position={[0, -3, 5]} intensity={0.5} color="#c2f04a" />
     </>
   );
 }
@@ -224,6 +269,7 @@ function D6_MATERIALS(color: string): THREE.MeshStandardMaterial[] {
         map: numberTexture(n, color),
         metalness: 0.2,
         roughness: 0.4,
+        side: THREE.DoubleSide,
       }),
   );
 }
@@ -255,6 +301,7 @@ export function DiceOverlay() {
   const clearDice = useStore((s) => s.clearDice);
   const recordLanded = useStore((s) => s.recordLanded);
   const [landed, setLanded] = useState<{ total: number; values: number[] } | null>(null);
+  const [muted, setMuted] = useState(isDiceMuted());
 
   // reset when a new roll comes in
   useEffect(() => {
@@ -265,6 +312,18 @@ export function DiceOverlay() {
 
   return (
     <div className="dice-overlay" onClick={clearDice} role="button" aria-label="Dismiss roll">
+      <button
+        className="dice-mute"
+        title={muted ? 'Unmute dice' : 'Mute dice'}
+        onClick={(e) => {
+          e.stopPropagation();
+          const next = !muted;
+          setMuted(next);
+          setDiceMuted(next);
+        }}
+      >
+        {muted ? '🔇' : '🔊'}
+      </button>
       <div className="dice-canvas">
         <Canvas shadows camera={{ position: [0, 7, 11], fov: 45 }} dpr={[1, 2]}>
           <DiceScene
