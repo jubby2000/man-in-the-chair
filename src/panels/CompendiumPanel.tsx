@@ -18,8 +18,8 @@ const KINDS: { key: CompendiumKind; label: string }[] = [
 
 export function CompendiumPanel({ onClose }: PanelComponentProps) {
   const compendium = useStore((s) => s.compendium);
-  const selectMonster = useStore((s) => s.selectMonster);
-  const selectedMonsterId = useStore((s) => s.selectedMonsterId);
+  const selectEntry = useStore((s) => s.selectEntry);
+  const selectedEntry = useStore((s) => s.selectedEntry);
   const addToEncounter = useStore((s) => s.addToEncounter);
   const [kind, setKind] = useState<CompendiumKind>('monsters');
   const [q, setQ] = useState('');
@@ -79,8 +79,10 @@ export function CompendiumPanel({ onClose }: PanelComponentProps) {
           {entries.map((e) => (
             <li
               key={e.id + (e.source ?? '')}
-              className={`list-item ${kind === 'monsters' && e.id === selectedMonsterId ? 'selected' : ''}`}
-              onClick={() => kind === 'monsters' && selectMonster(e.id)}
+              className={`list-item ${
+                selectedEntry?.kind === kind && selectedEntry.id === e.id ? 'selected' : ''
+              }`}
+              onClick={() => selectEntry(kind, e.id)}
             >
               <span>
                 {e.name}

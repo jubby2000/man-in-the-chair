@@ -4,12 +4,13 @@ import type {
   Compendium,
   CompendiumKind,
   Edition,
-  EncounterEntry,
+  Encounter,
   GridItem,
   ImportedSource,
   ImportStrategy,
   LayoutPreset,
   Monster,
+  PanelType,
   PartyMember,
 } from '../types';
 import { loadCompendium, existingNames } from '../lib/compendium';
@@ -32,14 +33,17 @@ interface AppState {
 
   // selection drives the stat block panel
   selectedMonsterId: string | null;
+  // generic selection for the detail panel (any compendium kind)
+  selectedEntry: { kind: CompendiumKind; id: string } | null;
 
   // combat
   combatants: Combatant[];
   activeTurn: number;
   round: number;
 
-  // encounter builder
-  encounter: EncounterEntry[];
+  // encounter builder — multiple named encounter tabs
+  encounters: Encounter[];
+  activeEncounterId: string;
 
   // party
   party: PartyMember[];
@@ -65,6 +69,7 @@ interface AppState {
   removeImport: (id: string) => Promise<void>;
 
   selectMonster: (id: string | null) => void;
+  selectEntry: (kind: CompendiumKind, id: string) => void;
 
   rollDice: (notation: string) => RollResult | null;
   recordLanded: (notation: string, total: number, values: number[]) => void;
@@ -82,6 +87,10 @@ interface AppState {
   updateEncounterCount: (monsterId: string, count: number) => void;
   clearEncounter: () => void;
   sendEncounterToCombat: () => void;
+  addEncounterTab: (name?: string) => void;
+  renameEncounterTab: (id: string, name: string) => void;
+  removeEncounterTab: (id: string) => void;
+  setActiveEncounter: (id: string) => void;
 
   addPartyMember: (p: Omit<PartyMember, 'id'>) => Promise<void>;
   updatePartyMember: (id: string, patch: Partial<PartyMember>) => Promise<void>;
@@ -92,6 +101,8 @@ interface AppState {
   addPreset: (name: string) => void;
   removePreset: (id: string) => void;
   renamePreset: (id: string, name: string) => void;
+  /** Ensure a panel type is present in the active preset; adds it if missing. */
+  ensurePanel: (panel: PanelType) => void;
 }
 
 function crToXp(cr: string): number {
@@ -111,10 +122,12 @@ export const useStore = create<AppState>((set, get) => ({
   compendium: EMPTY,
   imports: [],
   selectedMonsterId: null,
+  selectedEntry: null,
   combatants: [],
   activeTurn: 0,
   round: 1,
-  encounter: [],
+  encounters: [{ id: 'enc-1', name: 'Encounter 1', entries: [] }],
+  activeEncounterId: 'enc-1',
   party: [],
   diceOverlay: null,
   rollLog: [],
@@ -167,7 +180,10 @@ export const useStore = create<AppState>((set, get) => ({
     await get().reloadCompendium();
   },
 
-  selectMonster: (id) => set({ selectedMonsterId: id }),
+  selectMonster: (id) => set({ selectedMonsterId: id, selectedEntry: id ? { kind: 'monsters', id } : null }),
+
+  selectEntry: (kind, id) =>
+    set({ selectedEntry: { kind, id }, selectedMonsterId: kind === 'monsters' ? id : null }),
 
   showToast: (message) => set({ toast: { id: Date.now(), message } }),
 
@@ -228,41 +244,50 @@ export const useStore = create<AppState>((set, get) => ({
 
   resetCombat: () => set({ combatants: [], activeTurn: 0, round: 1 }),
 
-  addToEncounter: (m) =>
+  addToEncounter: (m) => {
+    get().ensurePanel('encounter'); // make sure the panel is visible
     set((s) => {
-      const existing = s.encounter.find((e) => e.monsterId === m.id);
       const toast = { id: Date.now(), message: `${m.name} added to encounter` };
-      if (existing) {
-        return {
-          toast,
-          encounter: s.encounter.map((e) =>
-            e.monsterId === m.id ? { ...e, count: e.count + 1 } : e,
-          ),
-        };
-      }
-      return {
-        toast,
-        encounter: [
-          ...s.encounter,
-          { monsterId: m.id, name: m.name, count: 1, cr: m.cr, xp: crToXp(m.cr), source: get().edition },
-        ],
-      };
-    }),
+      const encounters = s.encounters.map((enc) => {
+        if (enc.id !== s.activeEncounterId) return enc;
+        const existing = enc.entries.find((e) => e.monsterId === m.id);
+        const entries = existing
+          ? enc.entries.map((e) => (e.monsterId === m.id ? { ...e, count: e.count + 1 } : e))
+          : [
+              ...enc.entries,
+              { monsterId: m.id, name: m.name, count: 1, cr: m.cr, xp: crToXp(m.cr), source: get().edition },
+            ];
+        return { ...enc, entries };
+      });
+      return { toast, encounters };
+    });
+  },
 
   updateEncounterCount: (monsterId, count) =>
     set((s) => ({
-      encounter:
-        count <= 0
-          ? s.encounter.filter((e) => e.monsterId !== monsterId)
-          : s.encounter.map((e) => (e.monsterId === monsterId ? { ...e, count } : e)),
+      encounters: s.encounters.map((enc) => {
+        if (enc.id !== s.activeEncounterId) return enc;
+        const entries =
+          count <= 0
+            ? enc.entries.filter((e) => e.monsterId !== monsterId)
+            : enc.entries.map((e) => (e.monsterId === monsterId ? { ...e, count } : e));
+        return { ...enc, entries };
+      }),
     })),
 
-  clearEncounter: () => set({ encounter: [] }),
+  clearEncounter: () =>
+    set((s) => ({
+      encounters: s.encounters.map((enc) =>
+        enc.id === s.activeEncounterId ? { ...enc, entries: [] } : enc,
+      ),
+    })),
 
   sendEncounterToCombat: () => {
-    const { encounter, compendium } = get();
+    const { encounters, activeEncounterId, compendium } = get();
+    const active = encounters.find((e) => e.id === activeEncounterId);
+    if (!active) return;
     const byId = new Map(compendium.monsters.map((m) => [m.id, m]));
-    for (const entry of encounter) {
+    for (const entry of active.entries) {
       const m = byId.get(entry.monsterId);
       if (!m) continue;
       for (let n = 1; n <= entry.count; n++) {
@@ -280,6 +305,32 @@ export const useStore = create<AppState>((set, get) => ({
       }
     }
   },
+
+  addEncounterTab: (name) =>
+    set((s) => {
+      const id = `enc-${uid()}`;
+      const tabName = name?.trim() || `Encounter ${s.encounters.length + 1}`;
+      return {
+        encounters: [...s.encounters, { id, name: tabName, entries: [] }],
+        activeEncounterId: id,
+      };
+    }),
+
+  renameEncounterTab: (id, name) =>
+    set((s) => ({
+      encounters: s.encounters.map((e) => (e.id === id ? { ...e, name: name.trim() || e.name } : e)),
+    })),
+
+  removeEncounterTab: (id) =>
+    set((s) => {
+      if (s.encounters.length <= 1) return { encounters: [{ ...s.encounters[0], entries: [] }] };
+      const encounters = s.encounters.filter((e) => e.id !== id);
+      const activeEncounterId =
+        s.activeEncounterId === id ? encounters[0].id : s.activeEncounterId;
+      return { encounters, activeEncounterId };
+    }),
+
+  setActiveEncounter: (id) => set({ activeEncounterId: id }),
 
   addPartyMember: async (p) => {
     const member = { ...p, id: uid() };
@@ -337,6 +388,21 @@ export const useStore = create<AppState>((set, get) => ({
     set((s) => {
       const presets = s.presets.map((p) => (p.id === id ? { ...p, name } : p));
       const updated = presets.find((p) => p.id === id);
+      if (updated) void db.layouts.put(updated);
+      return { presets };
+    });
+  },
+
+  ensurePanel: (panel) => {
+    set((s) => {
+      const active = s.presets.find((p) => p.id === s.activePresetId);
+      if (!active || active.items.some((it) => it.panel === panel)) return s;
+      const maxY = active.items.reduce((m, it) => Math.max(m, it.y + it.h), 0);
+      const item: GridItem = { i: panel, panel, x: 0, y: maxY, w: 4, h: 9 };
+      const presets = s.presets.map((p) =>
+        p.id === active.id ? { ...p, items: [...p.items, item] } : p,
+      );
+      const updated = presets.find((p) => p.id === active.id);
       if (updated) void db.layouts.put(updated);
       return { presets };
     });

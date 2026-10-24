@@ -36,7 +36,7 @@ export const DEFAULT_PRESETS: LayoutPreset[] = [
 
 export const PANEL_TITLES: Record<string, string> = {
   compendium: 'Compendium',
-  statblock: 'Stat Block',
+  statblock: 'Detail',
   initiative: 'Initiative',
   dice: 'Dice',
   notes: 'Notes',

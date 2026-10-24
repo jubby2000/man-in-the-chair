@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Panel } from '../components/Panel';
 import type { PanelComponentProps } from '../types';
 import { useStore } from '../store/useStore';
@@ -25,19 +25,30 @@ const THRESHOLDS: Record<number, [number, number, number, number]> = {
 };
 
 export function EncounterPanel({ onClose }: PanelComponentProps) {
-  const encounter = useStore((s) => s.encounter);
+  const encounters = useStore((s) => s.encounters);
+  const activeEncounterId = useStore((s) => s.activeEncounterId);
   const party = useStore((s) => s.party);
   const updateEncounterCount = useStore((s) => s.updateEncounterCount);
   const clearEncounter = useStore((s) => s.clearEncounter);
   const sendEncounterToCombat = useStore((s) => s.sendEncounterToCombat);
+  const addEncounterTab = useStore((s) => s.addEncounterTab);
+  const renameEncounterTab = useStore((s) => s.renameEncounterTab);
+  const removeEncounterTab = useStore((s) => s.removeEncounterTab);
+  const setActiveEncounter = useStore((s) => s.setActiveEncounter);
   const selectMonster = useStore((s) => s.selectMonster);
 
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draftName, setDraftName] = useState('');
+
+  const active = encounters.find((e) => e.id === activeEncounterId) ?? encounters[0];
+  const entries = active?.entries ?? [];
+
   const { rawXp, adjustedXp, monsterCount } = useMemo(() => {
-    const monsterCount = encounter.reduce((a, e) => a + e.count, 0);
-    const rawXp = encounter.reduce((a, e) => a + e.xp * e.count, 0);
+    const monsterCount = entries.reduce((a, e) => a + e.count, 0);
+    const rawXp = entries.reduce((a, e) => a + e.xp * e.count, 0);
     const adjustedXp = Math.round(rawXp * encounterMultiplier(monsterCount));
     return { rawXp, adjustedXp, monsterCount };
-  }, [encounter]);
+  }, [entries]);
 
   const partyThresholds = useMemo(() => {
     if (party.length === 0) return null;
@@ -59,13 +70,22 @@ export function EncounterPanel({ onClose }: PanelComponentProps) {
     return { label: 'Trivial', cls: 'diff-trivial' };
   }, [adjustedXp, partyThresholds]);
 
+  const startRename = (id: string, name: string) => {
+    setEditingId(id);
+    setDraftName(name);
+  };
+  const commitRename = () => {
+    if (editingId) renameEncounterTab(editingId, draftName);
+    setEditingId(null);
+  };
+
   return (
     <Panel
       onClose={onClose}
       title="Encounter Builder"
       flush
       tools={
-        encounter.length > 0 && (
+        entries.length > 0 && (
           <>
             <button className="btn sm" onClick={clearEncounter}>
               Clear
@@ -77,12 +97,59 @@ export function EncounterPanel({ onClose }: PanelComponentProps) {
         )
       }
     >
-      {encounter.length === 0 ? (
+      {/* encounter tabs */}
+      <div className="enc-tabs">
+        {encounters.map((enc) =>
+          editingId === enc.id ? (
+            <input
+              key={enc.id}
+              className="enc-tab-input"
+              value={draftName}
+              autoFocus
+              onChange={(e) => setDraftName(e.target.value)}
+              onBlur={commitRename}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') commitRename();
+                if (e.key === 'Escape') setEditingId(null);
+              }}
+            />
+          ) : (
+            <button
+              key={enc.id}
+              className={`enc-tab ${enc.id === activeEncounterId ? 'active' : ''}`}
+              onClick={() => setActiveEncounter(enc.id)}
+              onDoubleClick={() => startRename(enc.id, enc.name)}
+              title="Double-click to rename"
+            >
+              {enc.name}
+              <span className="enc-tab-count">{enc.entries.reduce((a, e) => a + e.count, 0)}</span>
+              {encounters.length > 1 && (
+                <span
+                  className="enc-tab-x"
+                  title="Delete encounter"
+                  onClick={(ev) => {
+                    ev.stopPropagation();
+                    if (confirm(`Delete encounter “${enc.name}”?`)) removeEncounterTab(enc.id);
+                  }}
+                >
+                  ✕
+                </span>
+              )}
+            </button>
+          ),
+        )}
+        <button className="enc-tab-add" title="New encounter" onClick={() => addEncounterTab()}>
+          +
+        </button>
+      </div>
+
+      {entries.length === 0 ? (
         <div className="empty">
-          Add monsters from the Compendium (the <b>+enc</b> button) or the stat block.
+          Add monsters from the Compendium (the <b>+enc</b> button) or the stat block. Double-click a
+          tab to rename it.
         </div>
       ) : (
-        encounter.map((e) => (
+        entries.map((e) => (
           <div className="enc-row" key={e.monsterId}>
             <span style={{ cursor: 'pointer' }} onClick={() => selectMonster(e.monsterId)}>
               {e.name} <span className="meta">CR {e.cr}</span>
@@ -96,7 +163,7 @@ export function EncounterPanel({ onClose }: PanelComponentProps) {
           </div>
         ))
       )}
-      {encounter.length > 0 && (
+      {entries.length > 0 && (
         <div className="enc-summary">
           <div className="xp-line">
             <span>Monsters</span>

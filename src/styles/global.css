@@ -913,3 +913,81 @@ select.select {
   font-size: 12px;
   color: var(--text-dim);
 }
+
+/* ---- Encounter tabs ---- */
+.enc-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-soft);
+  overflow-x: auto;
+  flex-shrink: 0;
+}
+.enc-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border-soft);
+  color: var(--text-dim);
+  border-radius: var(--radius-pill);
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.enc-tab:hover {
+  color: var(--text);
+}
+.enc-tab.active {
+  background: var(--accent-soft);
+  color: var(--accent-2);
+  border-color: var(--accent);
+}
+.enc-tab-count {
+  font-size: 10px;
+  background: var(--bg-elev-2);
+  color: var(--text-faint);
+  border-radius: var(--radius-pill);
+  padding: 0 6px;
+  min-width: 16px;
+  text-align: center;
+}
+.enc-tab.active .enc-tab-count {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.enc-tab-x {
+  color: var(--text-faint);
+  font-size: 10px;
+}
+.enc-tab-x:hover {
+  color: var(--danger);
+}
+.enc-tab-add {
+  background: transparent;
+  border: 1px dashed var(--border);
+  color: var(--text-dim);
+  border-radius: var(--radius-pill);
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+}
+.enc-tab-add:hover {
+  border-color: var(--accent);
+  color: var(--accent-2);
+}
+.enc-tab-input {
+  background: var(--bg);
+  border: 1px solid var(--accent);
+  color: var(--text);
+  border-radius: var(--radius-pill);
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  width: 120px;
+}
+.enc-tab-input:focus {
+  outline: none;
+}

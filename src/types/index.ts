@@ -194,6 +194,13 @@ export interface EncounterEntry {
   source: Edition | string;
 }
 
+/** A named encounter tab holding a set of monster entries. */
+export interface Encounter {
+  id: string;
+  name: string;
+  entries: EncounterEntry[];
+}
+
 export interface PartyMember {
   id: string;
   name: string;
