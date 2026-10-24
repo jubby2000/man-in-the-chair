@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Panel } from '../components/Panel';
+import { RollableText } from '../components/RollableText';
 import type { PanelComponentProps } from '../types';
 import { useStore } from '../store/useStore';
 
@@ -60,7 +61,7 @@ export function RulesPanel({ onClose }: PanelComponentProps) {
                       whiteSpace: 'pre-wrap',
                     }}
                   >
-                    {e.desc}
+                    <RollableText>{e.desc}</RollableText>
                   </div>
                 )}
               </li>

@@ -1,4 +1,5 @@
 import { Panel } from '../components/Panel';
+import { RollableText } from '../components/RollableText';
 import type {
   Ability,
   Background,
@@ -25,7 +26,7 @@ function Entries({ title, items }: { title?: string; items: NamedEntry[] }) {
       {title && <div className="section-title">{title}</div>}
       {items.map((e, i) => (
         <div className="entry" key={i}>
-          <b>{e.name}.</b> {e.desc}
+          <b>{e.name}.</b> <RollableText>{e.desc}</RollableText>
         </div>
       ))}
     </>
@@ -102,10 +103,20 @@ function ItemView({ item }: { item: Item }) {
       <hr className="rule" />
       {line('Cost', item.cost)}
       {line('Weight', item.weight ? `${item.weight} lb` : undefined)}
-      {line('Damage', item.damage ? `${item.damage}${item.damageType ? ` ${item.damageType}` : ''}` : undefined)}
+      {item.damage && (
+        <div className="attr-line">
+          <b>Damage</b>{' '}
+          <RollableText>{item.damage}</RollableText>
+          {item.damageType ? ` ${item.damageType}` : ''}
+        </div>
+      )}
       {line('Armor Class', item.armorClass)}
       {line('Properties', item.properties)}
-      {item.desc && <div className="entry" style={{ whiteSpace: 'pre-wrap', marginTop: 8 }}>{item.desc}</div>}
+      {item.desc && (
+        <div className="entry" style={{ whiteSpace: 'pre-wrap', marginTop: 8 }}>
+          <RollableText>{item.desc}</RollableText>
+        </div>
+      )}
     </div>
   );
 }
@@ -121,7 +132,7 @@ function RaceView({ race }: { race: Race }) {
       {line('Speed', race.speed ? `${race.speed} ft` : undefined)}
       <hr className="rule" />
       <Entries title="Traits" items={race.traits} />
-      {race.desc && <div className="entry" style={{ whiteSpace: 'pre-wrap' }}>{race.desc}</div>}
+      {race.desc && <div className="entry" style={{ whiteSpace: "pre-wrap" }}><RollableText>{race.desc}</RollableText></div>}
     </div>
   );
 }
@@ -161,7 +172,7 @@ function FeatView({ feat }: { feat: Feat }) {
       <div className="subtitle">Feat</div>
       <hr className="rule" />
       {line('Prerequisite', feat.prerequisite)}
-      {feat.desc && <div className="entry" style={{ whiteSpace: 'pre-wrap', marginTop: 8 }}>{feat.desc}</div>}
+      {feat.desc && <div className="entry" style={{ whiteSpace: "pre-wrap", marginTop: 8 }}><RollableText>{feat.desc}</RollableText></div>}
     </div>
   );
 }
@@ -223,10 +234,10 @@ export function StatBlockPanel({ onClose }: PanelComponentProps) {
               {sp.concentration ? line('', 'Concentration') : null}
               {sp.ritual ? line('', 'Ritual') : null}
               <hr className="rule" />
-              <div className="entry" style={{ whiteSpace: 'pre-wrap' }}>{sp.desc}</div>
+              <div className="entry" style={{ whiteSpace: "pre-wrap" }}><RollableText>{sp.desc}</RollableText></div>
               {sp.higherLevel && (
                 <div className="entry">
-                  <b>At Higher Levels.</b> {sp.higherLevel}
+                  <b>At Higher Levels.</b> <RollableText>{sp.higherLevel}</RollableText>
                 </div>
               )}
             </div>
@@ -246,7 +257,7 @@ export function StatBlockPanel({ onClose }: PanelComponentProps) {
             <div className="statblock">
               <h2>{e.name}</h2>
               <hr className="rule" />
-              <div className="entry" style={{ whiteSpace: 'pre-wrap' }}>{e.desc}</div>
+              <div className="entry" style={{ whiteSpace: "pre-wrap" }}><RollableText>{e.desc}</RollableText></div>
             </div>
           );
         break;

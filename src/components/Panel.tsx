@@ -14,14 +14,17 @@ export function Panel({ title, children, tools, flush, onClose }: PanelProps) {
     <div className="panel">
       <div className="panel-header drag-handle">
         <span className="panel-title">{title}</span>
-        <div className="tools">
+        <div
+          className="tools"
+          // The header is the drag handle; without this, mousedown on a tool
+          // button starts a panel drag and the click never fires.
+          onMouseDown={(e) => e.stopPropagation()}
+        >
           {tools}
           {onClose && (
             <button
               className="btn icon sm ghost panel-close-btn"
               title="Remove panel"
-              // keep pointerDown from starting a drag on the handle
-              onMouseDown={(e) => e.stopPropagation()}
               onClick={(e) => {
                 e.stopPropagation();
                 onClose();

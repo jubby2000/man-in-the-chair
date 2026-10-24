@@ -991,3 +991,21 @@ select.select {
 .enc-tab-input:focus {
   outline: none;
 }
+
+/* ---- Clickable dice references ---- */
+.dice-link {
+  display: inline;
+  background: var(--accent-soft);
+  color: var(--accent-2);
+  border: none;
+  border-radius: 5px;
+  padding: 0 4px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+}
+.dice-link:hover {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
