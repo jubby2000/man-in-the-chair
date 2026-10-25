@@ -109,6 +109,20 @@ interface AppState {
   ensurePanel: (panel: PanelType) => void;
 }
 
+// When initiative advances to a combatant backed by a monster, point the Detail
+// panel at that monster. For PCs / generated NPCs (no monsterId) leave the
+// current selection untouched so the panel doesn't go blank.
+function selectionForTurn(
+  combatants: Combatant[],
+  index: number,
+): Partial<{ selectedEntry: { kind: CompendiumKind; id: string }; selectedMonsterId: string | null }> {
+  const c = combatants[index];
+  if (c?.monsterId) {
+    return { selectedEntry: { kind: 'monsters', id: c.monsterId }, selectedMonsterId: c.monsterId };
+  }
+  return {};
+}
+
 function crToXp(cr: string): number {
   const table: Record<string, number> = {
     '0': 10, '1/8': 25, '1/4': 50, '1/2': 100, '1': 200, '2': 450, '3': 700,
@@ -246,17 +260,21 @@ export const useStore = create<AppState>((set, get) => ({
     set((s) => ({ combatants: s.combatants.filter((c) => c.id !== id) })),
 
   sortInitiative: () =>
-    set((s) => ({
-      combatants: [...s.combatants].sort((a, b) => b.initiative - a.initiative),
-      activeTurn: 0,
-    })),
+    set((s) => {
+      const combatants = [...s.combatants].sort((a, b) => b.initiative - a.initiative);
+      return { combatants, activeTurn: 0, ...selectionForTurn(combatants, 0) };
+    }),
 
   nextTurn: () =>
     set((s) => {
       if (s.combatants.length === 0) return s;
-      const next = s.activeTurn + 1;
-      if (next >= s.combatants.length) return { activeTurn: 0, round: s.round + 1 };
-      return { activeTurn: next };
+      let next = s.activeTurn + 1;
+      let round = s.round;
+      if (next >= s.combatants.length) {
+        next = 0;
+        round = s.round + 1;
+      }
+      return { activeTurn: next, round, ...selectionForTurn(s.combatants, next) };
     }),
 
   resetCombat: () => set({ combatants: [], activeTurn: 0, round: 1 }),
