@@ -55,6 +55,7 @@ export default function App() {
   const ready = useStore((s) => s.ready);
   const init = useStore((s) => s.init);
   const displayName = useStore((s) => s.displayName);
+  const selectedEntry = useStore((s) => s.selectedEntry);
   const presets = useStore((s) => s.presets);
   const activePresetId = useStore((s) => s.activePresetId);
   const setActivePreset = useStore((s) => s.setActivePreset);
@@ -72,6 +73,18 @@ export default function App() {
     void initTheme();
     void initDiceSet();
   }, [init, initTheme, initDiceSet]);
+
+  // When the selected entry changes, bring the Detail panel into view. The
+  // double rAF waits for ensurePanel's layout change to render first.
+  useEffect(() => {
+    if (!selectedEntry) return;
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        const el = document.querySelector('[data-panel="statblock"]');
+        el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }),
+    );
+  }, [selectedEntry]);
 
   const active = presets.find((p) => p.id === activePresetId) ?? presets[0];
 
@@ -209,7 +222,7 @@ export default function App() {
           {(active?.items ?? []).map((it) => {
             const PanelComp = PANELS[it.panel];
             return (
-              <div key={it.i}>
+              <div key={it.i} data-panel={it.panel}>
                 <PanelComp onClose={() => removePanel(it.i)} />
               </div>
             );
