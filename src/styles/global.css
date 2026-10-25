@@ -1444,3 +1444,131 @@ select.select {
   font-size: 12px;
   padding: 6px 9px;
 }
+
+/* ---- Reusable styled dropdown ---- */
+.dropdown {
+  position: relative;
+  display: inline-flex;
+  min-width: 0;
+}
+.dropdown-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: space-between;
+  width: 100%;
+  cursor: pointer;
+}
+.dropdown-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dropdown-caret {
+  font-size: 9px;
+  color: var(--text-faint);
+  flex-shrink: 0;
+}
+.dropdown-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 200;
+  min-width: 100%;
+  max-width: 280px;
+  max-height: 260px;
+  overflow-y: auto;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  padding: 5px;
+}
+.dropdown-menu.align-right {
+  left: auto;
+  right: 0;
+}
+.dropdown-opt {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-size: 13px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+.dropdown-opt:hover {
+  background: var(--bg-elev-2);
+}
+.dropdown-opt.active {
+  background: var(--accent-soft);
+  color: var(--accent-2);
+  font-weight: 600;
+}
+.dropdown-group {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-faint);
+  padding: 8px 10px 3px;
+}
+
+.dropdown-grow {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ---- Encounter add picker ---- */
+.enc-add {
+  position: relative;
+  display: inline-flex;
+}
+.enc-add-popover {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 60;
+  min-width: 160px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  padding: 5px;
+}
+.enc-add-head {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-faint);
+  padding: 6px 9px 3px;
+}
+.enc-add-opt {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-size: 13px;
+  padding: 7px 9px;
+  border-radius: 6px;
+}
+.enc-add-opt:hover {
+  background: var(--accent-soft);
+  color: var(--accent-2);
+}
+.enc-add-count {
+  font-size: 10px;
+  background: var(--bg-elev-2);
+  color: var(--text-faint);
+  border-radius: var(--radius-pill);
+  padding: 1px 7px;
+}

@@ -1,4 +1,5 @@
 import { Panel } from '../components/Panel';
+import { EncounterAddButton } from '../components/EncounterAddButton';
 import { RollableText } from '../components/RollableText';
 import type {
   Ability,
@@ -42,13 +43,10 @@ const line = (label: string, value?: string | number) =>
 
 function MonsterView({ monster }: { monster: Monster }) {
   const addMonsterToCombat = useStore((s) => s.addMonsterToCombat);
-  const addToEncounter = useStore((s) => s.addToEncounter);
   return (
     <div className="statblock">
       <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
-        <button className="btn sm" onClick={() => addToEncounter(monster)}>
-          + Encounter
-        </button>
+        <EncounterAddButton monster={monster} label="+ Encounter" />
         <button className="btn sm primary" onClick={() => addMonsterToCombat(monster)}>
           + Combat
         </button>

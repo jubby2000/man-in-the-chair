@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Panel } from '../components/Panel';
+import { Dropdown } from '../components/Dropdown';
 import type { PanelComponentProps, Item } from '../types';
 import { useStore } from '../store/useStore';
 import {
@@ -142,13 +143,12 @@ function ItemRow({
 // Shared category filter dropdown.
 function CategorySelect({ value, onChange }: { value: ItemCategory; onChange: (c: ItemCategory) => void }) {
   return (
-    <select className="select" value={value} onChange={(e) => onChange(e.target.value as ItemCategory)} title="Item type">
-      {ITEM_CATEGORIES.map((c) => (
-        <option key={c.key} value={c.key}>
-          {c.label}
-        </option>
-      ))}
-    </select>
+    <Dropdown<ItemCategory>
+      value={value}
+      onChange={onChange}
+      title="Item type"
+      options={ITEM_CATEGORIES.map((c) => ({ value: c.key, label: c.label }))}
+    />
   );
 }
 
@@ -179,19 +179,21 @@ function LootTab({
   return (
     <div className="gen-tab">
       <div className="gen-controls">
-        <select className="select" value={tier} onChange={(e) => setTier(e.target.value as Tier)}>
-          <option value="minor">Minor hoard</option>
-          <option value="moderate">Moderate hoard</option>
-          <option value="major">Major hoard</option>
-        </select>
+        <Dropdown<Tier>
+          value={tier}
+          onChange={setTier}
+          options={[
+            { value: 'minor', label: 'Minor hoard' },
+            { value: 'moderate', label: 'Moderate hoard' },
+            { value: 'major', label: 'Major hoard' },
+          ]}
+        />
         <CategorySelect value={category} onChange={setCategory} />
-        <select className="select" value={count} onChange={(e) => setCount(+e.target.value)}>
-          {[1, 2, 3, 4, 5, 6].map((n) => (
-            <option key={n} value={n}>
-              {n} item{n > 1 ? 's' : ''}
-            </option>
-          ))}
-        </select>
+        <Dropdown
+          value={String(count)}
+          onChange={(v) => setCount(+v)}
+          options={[1, 2, 3, 4, 5, 6].map((n) => ({ value: String(n), label: `${n} item${n > 1 ? 's' : ''}` }))}
+        />
         <button className="btn primary" onClick={roll}>
           Roll loot
         </button>
@@ -260,28 +262,30 @@ function MagicTab({
   return (
     <div className="gen-tab">
       <div className="gen-controls">
-        <select className="select" value={mode} onChange={(e) => setMode(e.target.value as 'real' | 'homebrew')}>
-          <option value="real">Real (SRD + imports)</option>
-          <option value="homebrew">Homebrew flavor</option>
-        </select>
+        <Dropdown<'real' | 'homebrew'>
+          value={mode}
+          onChange={setMode}
+          options={[
+            { value: 'real', label: 'Real (SRD + imports)' },
+            { value: 'homebrew', label: 'Homebrew flavor' },
+          ]}
+        />
         {mode === 'real' && (
           <>
-            <select className="select" value={rarity} onChange={(e) => setRarity(e.target.value as Rarity | 'any')}>
-              <option value="any">Any rarity</option>
-              {rarities.map((r) => (
-                <option key={r} value={r}>
-                  {r}
-                </option>
-              ))}
-            </select>
+            <Dropdown<Rarity | 'any'>
+              value={rarity}
+              onChange={setRarity}
+              options={[
+                { value: 'any', label: 'Any rarity' },
+                ...rarities.map((r) => ({ value: r, label: r })),
+              ]}
+            />
             <CategorySelect value={category} onChange={setCategory} />
-            <select className="select" value={count} onChange={(e) => setCount(+e.target.value)}>
-              {[1, 2, 3, 4, 5].map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
+            <Dropdown
+              value={String(count)}
+              onChange={(v) => setCount(+v)}
+              options={[1, 2, 3, 4, 5].map((n) => ({ value: String(n), label: String(n) }))}
+            />
           </>
         )}
         <button className="btn primary" onClick={roll}>
@@ -352,13 +356,11 @@ function NamesTab({ onNotes }: { onNotes: (t: string) => void }) {
   return (
     <div className="gen-tab">
       <div className="gen-controls">
-        <select className="select" value={culture} onChange={(e) => setCulture(e.target.value as NameCulture)}>
-          {CULTURES.map((c) => (
-            <option key={c.key} value={c.key}>
-              {c.label}
-            </option>
-          ))}
-        </select>
+        <Dropdown<NameCulture>
+          value={culture}
+          onChange={setCulture}
+          options={CULTURES.map((c) => ({ value: c.key, label: c.label }))}
+        />
         <button className="btn primary" onClick={roll}>
           Generate names
         </button>

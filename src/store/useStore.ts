@@ -90,7 +90,7 @@ interface AppState {
   nextTurn: () => void;
   resetCombat: () => void;
 
-  addToEncounter: (m: Monster) => void;
+  addToEncounter: (m: Monster, encounterId?: string) => void;
   updateEncounterCount: (monsterId: string, count: number) => void;
   clearEncounter: () => void;
   sendEncounterToCombat: () => void;
@@ -295,12 +295,17 @@ export const useStore = create<AppState>((set, get) => ({
 
   resetCombat: () => set({ combatants: [], activeTurn: 0, round: 1 }),
 
-  addToEncounter: (m) => {
+  addToEncounter: (m, encounterId) => {
     get().ensurePanel('encounter'); // make sure the panel is visible
     set((s) => {
-      const toast = { id: Date.now(), message: `${m.name} added to encounter` };
+      const targetId = encounterId ?? s.activeEncounterId;
+      const target = s.encounters.find((e) => e.id === targetId);
+      const toast = {
+        id: Date.now(),
+        message: `${m.name} added to ${target ? target.name : 'encounter'}`,
+      };
       const encounters = s.encounters.map((enc) => {
-        if (enc.id !== s.activeEncounterId) return enc;
+        if (enc.id !== targetId) return enc;
         const existing = enc.entries.find((e) => e.monsterId === m.id);
         const entries = existing
           ? enc.entries.map((e) => (e.monsterId === m.id ? { ...e, count: e.count + 1 } : e))
@@ -310,7 +315,8 @@ export const useStore = create<AppState>((set, get) => ({
             ];
         return { ...enc, entries };
       });
-      return { toast, encounters };
+      // make the targeted encounter the active tab so the DM sees the add
+      return { toast, encounters, activeEncounterId: targetId };
     });
   },
 

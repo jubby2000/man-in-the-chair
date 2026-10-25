@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ThemePicker } from './ThemePicker';
 import { DiceSetPicker } from './DiceSetPicker';
+import { Dropdown } from './Dropdown';
 import { useStore } from '../store/useStore';
 import type { Edition } from '../types';
 
@@ -60,14 +61,14 @@ export function SettingsMenu() {
           </div>
           <div className="settings-row">
             <label className="settings-label">Ruleset</label>
-            <select
-              className="select"
+            <Dropdown<Edition>
               value={edition}
-              onChange={(e) => void setEdition(e.target.value as Edition)}
-            >
-              <option value="srd51">SRD 5.1 (2014)</option>
-              <option value="srd52">SRD 5.2 (2024)</option>
-            </select>
+              onChange={(v) => void setEdition(v)}
+              options={[
+                { value: 'srd51', label: 'SRD 5.1 (2014)' },
+                { value: 'srd52', label: 'SRD 5.2 (2024)' },
+              ]}
+            />
           </div>
           <div className="settings-row">
             <label className="settings-label">Theme</label>

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useThemeStore } from '../theme/useThemeStore';
+import { Dropdown } from './Dropdown';
 import type { ThemeType, VSCodeTheme } from '../theme/themes';
 
 function slug(s: string): string {
@@ -49,32 +50,18 @@ export function ThemePicker() {
   return (
     <>
       <div style={{ display: 'flex', alignItems: 'center', gap: 4, width: '100%' }}>
-        <select
-          className="select"
+        <Dropdown
+          className="dropdown-grow"
           value={themeId}
-          onChange={(e) => setTheme(e.target.value)}
+          onChange={(v) => setTheme(v)}
           title="Theme"
-          style={{ flex: 1, minWidth: 0 }}
-        >
-          <optgroup label="Built-in">
-            {all
+          options={[
+            ...all
               .filter((t) => !customThemes.includes(t))
-              .map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-          </optgroup>
-          {customThemes.length > 0 && (
-            <optgroup label="Custom">
-              {customThemes.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </optgroup>
-          )}
-        </select>
+              .map((t) => ({ value: t.id, label: t.name, group: 'Built-in' })),
+            ...customThemes.map((t) => ({ value: t.id, label: t.name, group: 'Custom' })),
+          ]}
+        />
         {isCustom && (
           <button
             className="btn icon sm"

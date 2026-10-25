@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Panel } from '../components/Panel';
+import { EncounterAddButton } from '../components/EncounterAddButton';
 import type { PanelComponentProps } from '../types';
 import { useStore } from '../store/useStore';
 import type { CompendiumKind } from '../types';
@@ -20,7 +21,6 @@ export function CompendiumPanel({ onClose }: PanelComponentProps) {
   const compendium = useStore((s) => s.compendium);
   const selectEntry = useStore((s) => s.selectEntry);
   const selectedEntry = useStore((s) => s.selectedEntry);
-  const addToEncounter = useStore((s) => s.addToEncounter);
   const [kind, setKind] = useState<CompendiumKind>('monsters');
   const [q, setQ] = useState('');
 
@@ -100,18 +100,7 @@ export function CompendiumPanel({ onClose }: PanelComponentProps) {
               </span>
               <span className="meta" style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                 {meta(e)}
-                {kind === 'monsters' && (
-                  <button
-                    className="btn sm"
-                    title="Add to encounter"
-                    onClick={(ev) => {
-                      ev.stopPropagation();
-                      addToEncounter(e as any);
-                    }}
-                  >
-                    +enc
-                  </button>
-                )}
+                {kind === 'monsters' && <EncounterAddButton monster={e as any} />}
               </span>
             </li>
           ))}

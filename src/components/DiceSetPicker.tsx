@@ -1,6 +1,7 @@
-import { useRef, useState } from 'react';
+import { useRef } from 'react';
 import { useDiceSetStore, DICE_SETS } from '../theme/diceSets';
 import { useStore } from '../store/useStore';
+import { Dropdown } from './Dropdown';
 
 const MAX_BYTES = 4 * 1024 * 1024; // 4 MB cap for a dice texture
 
@@ -13,7 +14,6 @@ export function DiceSetPicker() {
   const renameCustomSet = useDiceSetStore((s) => s.renameCustomSet);
   const showToast = useStore((s) => s.showToast);
   const fileRef = useRef<HTMLInputElement>(null);
-  const [busy, setBusy] = useState(false);
 
   const current = useDiceSetStore((s) => s.current());
   const isCustom = customSets.some((c) => c.id === setId);
@@ -36,7 +36,6 @@ export function DiceSetPicker() {
       showToast('Image too large (max 4 MB).');
       return;
     }
-    setBusy(true);
     try {
       const dataUrl = await new Promise<string>((resolve, reject) => {
         const r = new FileReader();
@@ -50,7 +49,6 @@ export function DiceSetPicker() {
     } catch {
       showToast('Could not read that image.');
     } finally {
-      setBusy(false);
       if (fileRef.current) fileRef.current.value = '';
     }
   };
@@ -70,31 +68,17 @@ export function DiceSetPicker() {
           flexShrink: 0,
         }}
       />
-      <select
-        className="select"
+      <Dropdown
+        className="dropdown-grow"
         value={setId}
-        onChange={(e) => onChange(e.target.value)}
-        disabled={busy}
-        style={{ flex: 1, minWidth: 0 }}
-      >
-        <optgroup label="Built-in">
-          {DICE_SETS.map((d) => (
-            <option key={d.id} value={d.id}>
-              🎲 {d.name}
-            </option>
-          ))}
-        </optgroup>
-        {customSets.length > 0 && (
-          <optgroup label="Custom">
-            {customSets.map((d) => (
-              <option key={d.id} value={d.id}>
-                🖼 {d.name}
-              </option>
-            ))}
-          </optgroup>
-        )}
-        <option value="__upload__">＋ Upload image…</option>
-      </select>
+        onChange={(v) => onChange(v)}
+        title="Dice set"
+        options={[
+          ...DICE_SETS.map((d) => ({ value: d.id, label: d.name, group: 'Built-in' })),
+          ...customSets.map((d) => ({ value: d.id, label: d.name, group: 'Custom' })),
+          { value: '__upload__', label: '＋ Upload image…' },
+        ]}
+      />
       {isCustom && (
         <>
           <button
