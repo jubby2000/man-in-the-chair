@@ -1253,3 +1253,35 @@ select.select {
   color: var(--text-dim);
   white-space: pre-wrap;
 }
+
+/* ---- Settings menu ---- */
+.settings-menu {
+  position: relative;
+}
+.settings-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 1150;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 12px;
+  width: min(300px, 90vw);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.settings-row {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.settings-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-faint);
+}

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, lazy, Suspense } from 'react';
 import GridLayout, { type Layout } from 'react-grid-layout';
 import { useStore } from './store/useStore';
 import { PANEL_TITLES } from './store/presets';
-import type { Edition, GridItem, PanelType } from './types';
+import type { GridItem, PanelType } from './types';
 import { CompendiumPanel } from './panels/CompendiumPanel';
 import { StatBlockPanel } from './panels/StatBlockPanel';
 import { InitiativePanel } from './panels/InitiativePanel';
@@ -15,8 +15,7 @@ import { GeneratorsPanel } from './panels/GeneratorsPanel';
 import { ImportDialog } from './components/ImportDialog';
 import { Toast } from './components/Toast';
 import { QuickRoll } from './components/QuickRoll';
-import { ThemePicker } from './components/ThemePicker';
-import { DiceSetPicker } from './components/DiceSetPicker';
+import { SettingsMenu } from './components/SettingsMenu';
 import { useThemeStore } from './theme/useThemeStore';
 import { useDiceSetStore } from './theme/diceSets';
 
@@ -54,8 +53,6 @@ function useContainerWidth() {
 export default function App() {
   const ready = useStore((s) => s.ready);
   const init = useStore((s) => s.init);
-  const edition = useStore((s) => s.edition);
-  const setEdition = useStore((s) => s.setEdition);
   const presets = useStore((s) => s.presets);
   const activePresetId = useStore((s) => s.activePresetId);
   const setActivePreset = useStore((s) => s.setActivePreset);
@@ -174,29 +171,18 @@ export default function App() {
             title="Add a panel to this preset"
           >
             <option value="">+ Add panel…</option>
-            {missingPanels.map((p) => (
-              <option key={p} value={p}>
-                {PANEL_TITLES[p]}
+            {missingPanels.map((pp) => (
+              <option key={pp} value={pp}>
+                {PANEL_TITLES[pp]}
               </option>
             ))}
           </select>
         )}
 
-        <select
-          className="select"
-          value={edition}
-          onChange={(e) => void setEdition(e.target.value as Edition)}
-          title="SRD edition"
-        >
-          <option value="srd51">SRD 5.1 (2014)</option>
-          <option value="srd52">SRD 5.2 (2024)</option>
-        </select>
-
         <button className="btn" onClick={() => setShowImport(true)}>
           Import
         </button>
-        <DiceSetPicker />
-        <ThemePicker />
+        <SettingsMenu />
       </div>
 
       <div className="grid-wrap">
