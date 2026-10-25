@@ -95,7 +95,19 @@ function applySources(base: Compendium, sources: ImportedSource[]): Compendium {
         }
       }
     }
-    (out[kind] as Named[]) = order.map((k) => byName.get(k)!).filter(Boolean);
+    // Final safety net: collapse true duplicates by id (e.g. the compendium
+    // imported twice stores the same slug id in two sources). 'keep-both'
+    // entries get a source-suffixed id, so they are preserved.
+    const seen = new Set<string>();
+    const deduped: Named[] = [];
+    for (const k of order) {
+      const entry = byName.get(k);
+      if (!entry) continue;
+      if (seen.has(entry.id)) continue;
+      seen.add(entry.id);
+      deduped.push(entry);
+    }
+    (out[kind] as Named[]) = deduped;
   }
   return out;
 }
