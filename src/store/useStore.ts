@@ -16,7 +16,7 @@ import type {
 import { loadCompendium, existingNames } from '../lib/compendium';
 import { buildImportedSource, countDuplicates } from '../lib/import';
 import { db, getKV, setKV } from '../lib/db';
-import { parseAndRoll, type RollResult } from '../lib/dice';
+import { parseAndRoll, countPhysicalDice, MAX_DICE, type RollResult } from '../lib/dice';
 import { DEFAULT_PRESETS } from './presets';
 
 const EMPTY: Compendium = {
@@ -188,6 +188,11 @@ export const useStore = create<AppState>((set, get) => ({
   showToast: (message) => set({ toast: { id: Date.now(), message } }),
 
   rollDice: (notation) => {
+    const n = countPhysicalDice(notation);
+    if (n !== null && n > MAX_DICE) {
+      set({ toast: { id: Date.now(), message: `Too many dice (${n}). Max ${MAX_DICE} per roll.` } });
+      return null;
+    }
     const result = parseAndRoll(notation);
     if (result) set({ diceOverlay: result });
     return result;

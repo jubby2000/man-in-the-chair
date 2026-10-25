@@ -18,6 +18,26 @@ export interface RollResult {
   total: number;
 }
 
+/** Max physical dice animated in one roll (a d100 counts as 2). */
+export const MAX_DICE = 50;
+
+/** Count the physical dice a notation would spawn (d100 -> 2 each), or null if unparseable. */
+export function countPhysicalDice(input: string): number | null {
+  const notation = input.trim().toLowerCase().replace(/\s+/g, '');
+  if (!notation) return null;
+  if (!/^[+-]?(\d*d\d+(k[hl]\d+)?|\d+)([+-](\d*d\d+(k[hl]\d+)?|\d+))*$/.test(notation)) return null;
+  let n = 0;
+  let m: RegExpExecArray | null;
+  const re = new RegExp(TERM.source, 'gi');
+  while ((m = re.exec(notation)) !== null) {
+    if (m[6] !== undefined) continue; // flat modifier
+    const count = m[2] === '' ? 1 : parseInt(m[2], 10);
+    const sides = parseInt(m[3], 10);
+    n += sides === 100 ? count * 2 : count;
+  }
+  return n;
+}
+
 const TERM = /([+-]?)\s*(\d*)d(\d+)(?:k([hl])(\d+))?|([+-]?\s*\d+)/gi;
 
 function rollDie(sides: number): number {

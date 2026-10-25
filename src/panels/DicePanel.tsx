@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Panel } from '../components/Panel';
 import type { PanelComponentProps } from '../types';
 import { useStore } from '../store/useStore';
+import { MAX_DICE } from '../lib/dice';
 
 const QUICK = ['d20', 'd12', 'd10', 'd8', 'd6', 'd4', 'd100', '2d6'];
 
@@ -56,7 +57,7 @@ export function DicePanel({ onClose }: PanelComponentProps) {
         <div className="roll-log">
           {rollLog.length === 0 ? (
             <div className="empty" style={{ padding: '12px 0' }}>
-              Rolls land in a physics tray — the total comes from the faces that settle.
+              Rolls land in a physics tray — the total comes from the faces that settle. Up to {MAX_DICE} dice per roll.
             </div>
           ) : (
             rollLog.map((r, i) => (
