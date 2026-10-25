@@ -111,9 +111,11 @@ const VOICE_TIMBRE = [
 interface Accent {
   label: string;
   cue: string;
+  /** true when the accent already dictates pitch (skip adding a timbre) */
+  fixedPitch?: boolean;
 }
 const VOICE_ACCENTS: Accent[] = [
-  // recognizable real-world (approximate from memory)
+  // recognizable real-world accents (approximate from memory)
   { label: 'gruff German accent', cue: 'harden consonants, turn “w” into “v”, clip the rhythm' },
   { label: 'posh British accent', cue: 'crisp vowels, drop the “r” at word ends, sound faintly bored' },
   { label: 'slow Southern drawl', cue: 'stretch the vowels, drop your jaw, trail off at the end' },
@@ -122,13 +124,15 @@ const VOICE_ACCENTS: Accent[] = [
   { label: 'rapid French accent', cue: 'soften the “th” to “z”, swallow the “h”, keep it breathy' },
   { label: 'gravel-road Russian accent', cue: 'drop the “the/a”, flatten the vowels, land heavy on each word' },
   { label: 'easy Irish lilt', cue: 'lift the melody, soften the “t” toward “d”, keep it quick and warm' },
-  // approachable fantasy flair (still has a concrete cue)
-  { label: 'dwarven mountain growl', cue: 'drop your pitch, chew the consonants, speak from the chest' },
-  { label: 'airy elven cadence', cue: 'slow down, over-smooth the vowels, never raise your voice' },
-  { label: 'hissing draconic rasp', cue: 'drag out every “s”, add a dry rattle, speak just above a whisper' },
-  { label: 'goblin cackle-speak', cue: 'pitch up, rush the words, break into a sharp little laugh' },
-  { label: 'ghostly hollow whisper', cue: 'half-voice it, add an echo by trailing each phrase, no hard stops' },
-  { label: 'merchant’s oily patter', cue: 'quick and smiling, lean on every adjective, never pause for doubt' },
+  { label: 'clipped Scandinavian accent', cue: 'bounce the pitch, keep vowels pure, land lightly on each word' },
+  { label: 'rural American twang', cue: 'flatten and nasalize the vowels, shorten “-ing” to “-in”' },
+  // fantasy flair — each is a SOUND you make, not a personality
+  { label: 'dwarven chest-growl', cue: 'drop your pitch low, chew the consonants, push from the chest', fixedPitch: true },
+  { label: 'airy elven cadence', cue: 'slow down, glide the vowels, never let your voice get loud', fixedPitch: true },
+  { label: 'hissing draconic rasp', cue: 'drag out every “s”, add a dry rattle in the throat, stay quiet', fixedPitch: true },
+  { label: 'hollow ghostly tone', cue: 'half-voice it, let each phrase fade out, no hard stops', fixedPitch: true },
+  { label: 'guttural orcish bark', cue: 'growl from the back of the throat, bite off each word short', fixedPitch: true },
+  { label: 'squeaky goblin pitch', cue: 'pinch the voice high and thin, rush the words together', fixedPitch: true },
 ];
 
 export interface GeneratedNPC {
@@ -165,10 +169,15 @@ export function generateNPC(): GeneratedNPC {
   };
 }
 
-/** A performable voice note: timbre + accent, with a concrete how-to cue. */
+/** A performable voice note: a concrete sound + a how-to cue. Pitch-neutral
+ *  (real-world) accents get a timbre prefix; creature accents stand alone so
+ *  the pitch isn't contradicted. */
 export function generateVoice(): string {
-  const timbre = pick(VOICE_TIMBRE);
   const accent = pick(VOICE_ACCENTS);
+  if (accent.fixedPitch) {
+    return `${accent.label} — ${accent.cue}`;
+  }
+  const timbre = pick(VOICE_TIMBRE);
   return `${timbre}, ${accent.label} — ${accent.cue}`;
 }
 
