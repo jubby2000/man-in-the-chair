@@ -2,17 +2,20 @@ import { useEffect, useState } from 'react';
 import { Panel } from '../components/Panel';
 import type { PanelComponentProps } from '../types';
 import { getKV, setKV } from '../lib/db';
+import { useStore } from '../store/useStore';
 
 export function NotesPanel({ onClose }: PanelComponentProps) {
   const [text, setText] = useState('');
   const [loaded, setLoaded] = useState(false);
+  const notesRevision = useStore((s) => s.notesRevision);
 
+  // (re)load from storage on mount and whenever an external append bumps the revision
   useEffect(() => {
     getKV<string>('notes', '').then((v) => {
       setText(v);
       setLoaded(true);
     });
-  }, []);
+  }, [notesRevision]);
 
   useEffect(() => {
     if (!loaded) return;

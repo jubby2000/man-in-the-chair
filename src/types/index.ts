@@ -224,7 +224,8 @@ export type PanelType =
   | 'notes'
   | 'encounter'
   | 'rules'
-  | 'party';
+  | 'party'
+  | 'generators';
 
 export interface GridItem {
   i: string;

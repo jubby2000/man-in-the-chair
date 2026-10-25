@@ -11,6 +11,7 @@ import { NotesPanel } from './panels/NotesPanel';
 import { EncounterPanel } from './panels/EncounterPanel';
 import { RulesPanel } from './panels/RulesPanel';
 import { PartyPanel } from './panels/PartyPanel';
+import { GeneratorsPanel } from './panels/GeneratorsPanel';
 import { ImportDialog } from './components/ImportDialog';
 import { Toast } from './components/Toast';
 import { QuickRoll } from './components/QuickRoll';
@@ -33,10 +34,11 @@ const PANELS: Record<PanelType, (props: { onClose?: () => void }) => JSX.Element
   encounter: EncounterPanel,
   rules: RulesPanel,
   party: PartyPanel,
+  generators: GeneratorsPanel,
 };
 
 const ALL_PANELS: PanelType[] = [
-  'compendium', 'statblock', 'initiative', 'dice', 'encounter', 'rules', 'party', 'notes',
+  'compendium', 'statblock', 'initiative', 'dice', 'encounter', 'generators', 'rules', 'party', 'notes',
 ];
 
 function useContainerWidth() {

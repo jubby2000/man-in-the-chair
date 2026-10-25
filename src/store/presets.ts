@@ -32,6 +32,15 @@ export const DEFAULT_PRESETS: LayoutPreset[] = [
       { i: 'statblock', panel: 'statblock', x: 9, y: 0, w: 3, h: 12 },
     ],
   },
+  {
+    id: 'preset-tools',
+    name: 'Tools',
+    items: [
+      { i: 'generators', panel: 'generators', x: 0, y: 0, w: 5, h: 12 },
+      { i: 'statblock', panel: 'statblock', x: 5, y: 0, w: 4, h: 12 },
+      { i: 'notes', panel: 'notes', x: 9, y: 0, w: 3, h: 12 },
+    ],
+  },
 ];
 
 export const PANEL_TITLES: Record<string, string> = {
@@ -43,4 +52,5 @@ export const PANEL_TITLES: Record<string, string> = {
   encounter: 'Encounter Builder',
   rules: 'Rules Reference',
   party: 'Party',
+  generators: 'Generators',
 };

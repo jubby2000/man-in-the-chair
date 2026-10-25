@@ -55,6 +55,10 @@ interface AppState {
   // transient toast
   toast: { id: number; message: string } | null;
   showToast: (message: string) => void;
+  /** Append text to the Notes panel's persisted content. */
+  appendNotes: (text: string) => Promise<void>;
+  /** Bumped whenever notes are changed externally (e.g. generator). */
+  notesRevision: number;
 
   // layout
   presets: LayoutPreset[];
@@ -132,6 +136,7 @@ export const useStore = create<AppState>((set, get) => ({
   diceOverlay: null,
   rollLog: [],
   toast: null,
+  notesRevision: 0,
   presets: DEFAULT_PRESETS,
   activePresetId: DEFAULT_PRESETS[0].id,
 
@@ -186,6 +191,13 @@ export const useStore = create<AppState>((set, get) => ({
     set({ selectedEntry: { kind, id }, selectedMonsterId: kind === 'monsters' ? id : null }),
 
   showToast: (message) => set({ toast: { id: Date.now(), message } }),
+
+  appendNotes: async (text) => {
+    const existing = await getKV<string>('notes', '');
+    const next = existing ? `${existing}\n\n${text}` : text;
+    await setKV('notes', next);
+    set((s) => ({ toast: { id: Date.now(), message: 'Added to Notes' }, notesRevision: s.notesRevision + 1 }));
+  },
 
   rollDice: (notation) => {
     const n = countPhysicalDice(notation);

@@ -1176,3 +1176,49 @@ select.select {
   font-family: var(--font-mono);
   font-size: 10px;
 }
+
+/* ---- Generators panel ---- */
+.gen-body { padding: 0; }
+.gen-tab { padding: 10px 12px; }
+.gen-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.gen-result {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.gen-coins {
+  font-weight: 700;
+  color: var(--gold);
+  font-size: 14px;
+}
+.gen-card {
+  background: var(--bg-elev);
+  border: 1px solid var(--border-soft);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+}
+.gen-card-title {
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--accent-2);
+}
+.gen-card-sub {
+  color: var(--text-dim);
+  font-style: italic;
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+.gen-card-line { font-size: 13px; margin: 3px 0; }
+.gen-card-quirk {
+  font-size: 12px;
+  color: var(--text-dim);
+  font-style: italic;
+  margin-top: 6px;
+}
