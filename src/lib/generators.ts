@@ -99,6 +99,38 @@ const HOOKS = [
   'carries a debt to a dangerous person', 'witnessed a crime last night',
 ];
 
+// Voice = a timbre + an accent/manner that carries a short "how to do it" cue.
+// Accents mix recognizable real-world ones (easy to reference) with approachable
+// fantasy flair — all actionable.
+const VOICE_TIMBRE = [
+  'deep and gravelly', 'high and reedy', 'warm and smooth', 'thin and raspy',
+  'booming', 'soft and breathy', 'nasal', 'rich and resonant', 'clipped and precise',
+  'wheezy', 'honeyed', 'flat and monotone',
+];
+
+interface Accent {
+  label: string;
+  cue: string;
+}
+const VOICE_ACCENTS: Accent[] = [
+  // recognizable real-world (approximate from memory)
+  { label: 'gruff German accent', cue: 'harden consonants, turn “w” into “v”, clip the rhythm' },
+  { label: 'posh British accent', cue: 'crisp vowels, drop the “r” at word ends, sound faintly bored' },
+  { label: 'slow Southern drawl', cue: 'stretch the vowels, drop your jaw, trail off at the end' },
+  { label: 'sing-song Italian lilt', cue: 'bounce the pitch up and down, add a vowel to the end of words' },
+  { label: 'rolling Scottish burr', cue: 'roll the “r”s hard, shorten the vowels, punch the first syllable' },
+  { label: 'rapid French accent', cue: 'soften the “th” to “z”, swallow the “h”, keep it breathy' },
+  { label: 'gravel-road Russian accent', cue: 'drop the “the/a”, flatten the vowels, land heavy on each word' },
+  { label: 'easy Irish lilt', cue: 'lift the melody, soften the “t” toward “d”, keep it quick and warm' },
+  // approachable fantasy flair (still has a concrete cue)
+  { label: 'dwarven mountain growl', cue: 'drop your pitch, chew the consonants, speak from the chest' },
+  { label: 'airy elven cadence', cue: 'slow down, over-smooth the vowels, never raise your voice' },
+  { label: 'hissing draconic rasp', cue: 'drag out every “s”, add a dry rattle, speak just above a whisper' },
+  { label: 'goblin cackle-speak', cue: 'pitch up, rush the words, break into a sharp little laugh' },
+  { label: 'ghostly hollow whisper', cue: 'half-voice it, add an echo by trailing each phrase, no hard stops' },
+  { label: 'merchant’s oily patter', cue: 'quick and smiling, lean on every adjective, never pause for doubt' },
+];
+
 export interface GeneratedNPC {
   name: string;
   race: string;
@@ -109,6 +141,7 @@ export interface GeneratedNPC {
   flaw: string;
   appearance: string;
   hook: string;
+  voice: string;
 }
 
 const RACE_TO_CULTURE: Record<string, NameCulture> = {
@@ -128,7 +161,15 @@ export function generateNPC(): GeneratedNPC {
     flaw: pick(FLAWS),
     appearance: pick(APPEARANCE),
     hook: pick(HOOKS),
+    voice: generateVoice(),
   };
+}
+
+/** A performable voice note: timbre + accent, with a concrete how-to cue. */
+export function generateVoice(): string {
+  const timbre = pick(VOICE_TIMBRE);
+  const accent = pick(VOICE_ACCENTS);
+  return `${timbre}, ${accent.label} — ${accent.cue}`;
 }
 
 // ---- Homebrew magic-item flavor generator ----

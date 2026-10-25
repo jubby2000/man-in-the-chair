@@ -405,7 +405,7 @@ function NpcTab({
   const [npc, setNpc] = useState<GeneratedNPC | null>(null);
 
   const npcText = (n: GeneratedNPC) =>
-    `${n.name} — ${n.race} ${n.occupation}\n  Appearance: ${n.appearance}\n  Trait: ${n.trait}\n  Ideal: ${n.ideal} · Bond: ${n.bond} · Flaw: ${n.flaw}\n  Hook: ${n.hook}`;
+    `${n.name} — ${n.race} ${n.occupation}\n  Appearance: ${n.appearance}\n  Voice: ${n.voice}\n  Trait: ${n.trait}\n  Ideal: ${n.ideal} · Bond: ${n.bond} · Flaw: ${n.flaw}\n  Hook: ${n.hook}`;
 
   const toCombat = (n: GeneratedNPC) => {
     ensurePanel('initiative'); // surface the tracker if it isn't shown
@@ -442,6 +442,7 @@ function NpcTab({
               {npc.race} {npc.occupation}
             </div>
             <div className="gen-card-line"><b>Appearance:</b> {npc.appearance}</div>
+            <div className="gen-card-line"><b>Voice:</b> {npc.voice}</div>
             <div className="gen-card-line"><b>Trait:</b> {npc.trait}</div>
             <div className="gen-card-line">
               <b>Ideal:</b> {npc.ideal} · <b>Bond:</b> {npc.bond} · <b>Flaw:</b> {npc.flaw}
