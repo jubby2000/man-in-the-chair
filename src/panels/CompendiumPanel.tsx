@@ -31,6 +31,12 @@ export function CompendiumPanel({ onClose }: PanelComponentProps) {
     return [...filtered].sort((a, b) => a.name.localeCompare(b.name));
   }, [compendium, kind, q]);
 
+  // Rendering thousands of rows (Items has ~1800) stalls the panel and makes
+  // tab switches feel stuck. Cap the DOM to a window and nudge toward search.
+  const RENDER_CAP = 200;
+  const shown = entries.slice(0, RENDER_CAP);
+  const hiddenCount = entries.length - shown.length;
+
   const meta = (e: any): string => {
     switch (kind) {
       case 'monsters':
@@ -76,7 +82,7 @@ export function CompendiumPanel({ onClose }: PanelComponentProps) {
         <div className="empty">No {kind} match “{q}”.</div>
       ) : (
         <ul className="list">
-          {entries.map((e) => (
+          {shown.map((e) => (
             <li
               key={e.id + (e.source ?? '')}
               className={`list-item ${
@@ -109,6 +115,11 @@ export function CompendiumPanel({ onClose }: PanelComponentProps) {
               </span>
             </li>
           ))}
+          {hiddenCount > 0 && (
+            <li className="list-more">
+              + {hiddenCount.toLocaleString()} more — type to narrow the search
+            </li>
+          )}
         </ul>
       )}
     </Panel>

@@ -1285,3 +1285,12 @@ select.select {
   letter-spacing: 0.5px;
   color: var(--text-faint);
 }
+
+.list-more {
+  padding: 10px 12px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-faint);
+  border-top: 1px solid var(--border-soft);
+  background: var(--bg-elev);
+}
