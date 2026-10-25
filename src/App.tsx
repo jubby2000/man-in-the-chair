@@ -223,6 +223,7 @@ export default function App() {
           width={width}
           margin={[10, 10]}
           draggableHandle=".drag-handle"
+          resizeHandles={['se', 'sw', 'ne', 'nw']}
           onLayoutChange={onLayoutChange}
           compactType="vertical"
         >

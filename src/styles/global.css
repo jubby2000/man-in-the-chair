@@ -299,9 +299,27 @@ select.select {
   opacity: 0.18;
   border-radius: var(--radius);
 }
+/* Hide the default resize-handle marker (corner artifact) but keep the handles
+   functional; give each corner the right resize cursor. */
 .react-grid-item > .react-resizable-handle::after {
-  border-right-color: var(--text-faint);
-  border-bottom-color: var(--text-faint);
+  display: none;
+}
+.react-grid-item > .react-resizable-handle {
+  background-image: none;
+  width: 16px;
+  height: 16px;
+}
+.react-grid-item > .react-resizable-handle-se {
+  cursor: se-resize;
+}
+.react-grid-item > .react-resizable-handle-sw {
+  cursor: sw-resize;
+}
+.react-grid-item > .react-resizable-handle-ne {
+  cursor: ne-resize;
+}
+.react-grid-item > .react-resizable-handle-nw {
+  cursor: nw-resize;
 }
 
 /* ---- Lists & search ---- */
