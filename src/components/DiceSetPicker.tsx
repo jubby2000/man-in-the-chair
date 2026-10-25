@@ -56,7 +56,7 @@ export function DiceSetPicker() {
   };
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }} title="Dice set">
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%' }} title="Dice set">
       <span
         aria-hidden
         style={{
@@ -70,7 +70,13 @@ export function DiceSetPicker() {
           flexShrink: 0,
         }}
       />
-      <select className="select" value={setId} onChange={(e) => onChange(e.target.value)} disabled={busy}>
+      <select
+        className="select"
+        value={setId}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={busy}
+        style={{ flex: 1, minWidth: 0 }}
+      >
         <optgroup label="Built-in">
           {DICE_SETS.map((d) => (
             <option key={d.id} value={d.id}>
@@ -94,6 +100,7 @@ export function DiceSetPicker() {
           <button
             className="btn icon sm"
             title="Rename this custom set"
+            style={{ flexShrink: 0 }}
             onClick={() => {
               const name = prompt('Rename dice set:', current.name);
               if (name && name.trim()) renameCustomSet(setId, name);
@@ -101,7 +108,12 @@ export function DiceSetPicker() {
           >
             ✎
           </button>
-          <button className="btn icon sm" title="Remove this custom set" onClick={() => removeCustomSet(setId)}>
+          <button
+            className="btn icon sm"
+            title="Remove this custom set"
+            style={{ flexShrink: 0 }}
+            onClick={() => removeCustomSet(setId)}
+          >
             ✕
           </button>
         </>

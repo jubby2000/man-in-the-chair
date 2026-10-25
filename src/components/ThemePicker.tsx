@@ -48,12 +48,13 @@ export function ThemePicker() {
 
   return (
     <>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, width: '100%' }}>
         <select
           className="select"
           value={themeId}
           onChange={(e) => setTheme(e.target.value)}
           title="Theme"
+          style={{ flex: 1, minWidth: 0 }}
         >
           <optgroup label="Built-in">
             {all
@@ -78,12 +79,18 @@ export function ThemePicker() {
           <button
             className="btn icon sm"
             title="Remove this custom theme"
+            style={{ flexShrink: 0 }}
             onClick={() => removeCustomTheme(themeId)}
           >
             ✕
           </button>
         )}
-        <button className="btn icon" title="Import a VS Code theme" onClick={() => setShowImport(true)}>
+        <button
+          className="btn icon"
+          title="Import a VS Code theme"
+          style={{ flexShrink: 0 }}
+          onClick={() => setShowImport(true)}
+        >
           +
         </button>
       </div>
