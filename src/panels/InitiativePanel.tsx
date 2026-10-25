@@ -131,7 +131,7 @@ export function InitiativePanel({ onClose }: PanelComponentProps) {
                   </div>
                 )}
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' }}>
                 <button
                   className="btn sm"
                   onClick={() => setCondFor(condFor === c.id ? null : c.id)}
@@ -142,23 +142,23 @@ export function InitiativePanel({ onClose }: PanelComponentProps) {
                   ✕
                 </button>
                 {condFor === c.id && (
-                  <select
-                    className="select"
-                    value=""
-                    onChange={(e) => {
-                      if (e.target.value && !c.conditions.includes(e.target.value)) {
-                        updateCombatant(c.id, { conditions: [...c.conditions, e.target.value] });
-                      }
-                      setCondFor(null);
-                    }}
-                  >
-                    <option value="">add…</option>
-                    {CONDITIONS.map((cond) => (
-                      <option key={cond} value={cond}>
+                  <div className="cond-popover" onMouseLeave={() => setCondFor(null)}>
+                    {CONDITIONS.filter((cond) => !c.conditions.includes(cond)).map((cond) => (
+                      <button
+                        key={cond}
+                        className="cond-opt"
+                        onClick={() => {
+                          updateCombatant(c.id, { conditions: [...c.conditions, cond] });
+                          setCondFor(null);
+                        }}
+                      >
                         {cond}
-                      </option>
+                      </button>
                     ))}
-                  </select>
+                    {CONDITIONS.every((cond) => c.conditions.includes(cond)) && (
+                      <div className="cond-opt-empty">All applied</div>
+                    )}
+                  </div>
                 )}
               </div>
             </div>
