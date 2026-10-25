@@ -53,6 +53,7 @@ function useContainerWidth() {
 export default function App() {
   const ready = useStore((s) => s.ready);
   const init = useStore((s) => s.init);
+  const displayName = useStore((s) => s.displayName);
   const presets = useStore((s) => s.presets);
   const activePresetId = useStore((s) => s.activePresetId);
   const setActivePreset = useStore((s) => s.setActivePreset);
@@ -122,7 +123,7 @@ export default function App() {
       <div className="topbar">
         <div className="brand">
           <span className="glyph">◆</span>
-          Man in the Chair
+          {displayName}
         </div>
 
         <div className="preset-tabs">

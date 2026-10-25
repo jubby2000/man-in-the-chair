@@ -28,6 +28,9 @@ const uid = () => Math.random().toString(36).slice(2, 10);
 interface AppState {
   ready: boolean;
   edition: Edition;
+  /** User-customizable title shown in the top bar (app name stays fixed). */
+  displayName: string;
+  setDisplayName: (name: string) => void;
   compendium: Compendium;
   imports: ImportedSource[];
 
@@ -137,6 +140,7 @@ function crToXp(cr: string): number {
 export const useStore = create<AppState>((set, get) => ({
   ready: false,
   edition: 'srd51',
+  displayName: 'Man in the Chair',
   compendium: EMPTY,
   imports: [],
   selectedMonsterId: null,
@@ -161,11 +165,21 @@ export const useStore = create<AppState>((set, get) => ({
     const activePresetId = await getKV<string>('activePresetId', presets[0].id);
     const party = await db.party.toArray();
     const imports = await db.imports.toArray();
+    const displayName = await getKV<string>('displayName', 'Man in the Chair');
     const compendium = await loadCompendium(edition);
     if (!savedPresets.length) {
       await db.layouts.bulkPut(DEFAULT_PRESETS);
     }
-    set({ ready: true, edition, compendium, imports, presets, activePresetId, party });
+    set({ ready: true, edition, displayName, compendium, imports, presets, activePresetId, party });
+  },
+
+  setDisplayName: (name) => {
+    // Cap length so the top-bar title can't overflow or be abused; fall back to
+    // the app name when cleared.
+    const trimmed = name.trim().slice(0, 40);
+    const value = trimmed || 'Man in the Chair';
+    set({ displayName: value });
+    void setKV('displayName', value);
   },
 
   setEdition: async (e) => {
