@@ -1479,9 +1479,16 @@ select.select {
   white-space: nowrap;
 }
 .dropdown-caret {
-  font-size: 9px;
-  color: var(--text-faint);
+  color: var(--text-dim);
   flex-shrink: 0;
+  transition: transform 0.15s ease, color 0.12s;
+}
+.dropdown-trigger:hover .dropdown-caret {
+  color: var(--text);
+}
+.dropdown[data-open='true'] .dropdown-caret {
+  transform: rotate(180deg);
+  color: var(--accent);
 }
 .dropdown-menu {
   position: absolute;
