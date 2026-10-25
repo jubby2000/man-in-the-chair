@@ -26,6 +26,47 @@ function isMagic(i: Item): boolean {
   return i.magic === true || baseRarity(i.rarity) !== null;
 }
 
+// Broad category buckets so filtering works across SRD ("Weapon", "Armor",
+// "Wondrous Items"...) and FightClub import categories ("Melee Weapon", etc.).
+export type ItemCategory =
+  | 'any'
+  | 'weapon'
+  | 'armor'
+  | 'potion'
+  | 'ring'
+  | 'rod/staff/wand'
+  | 'scroll'
+  | 'wondrous'
+  | 'other';
+
+export const ITEM_CATEGORIES: { key: ItemCategory; label: string }[] = [
+  { key: 'any', label: 'Any type' },
+  { key: 'weapon', label: 'Weapons' },
+  { key: 'armor', label: 'Armor & shields' },
+  { key: 'potion', label: 'Potions' },
+  { key: 'ring', label: 'Rings' },
+  { key: 'rod/staff/wand', label: 'Rods, staffs & wands' },
+  { key: 'scroll', label: 'Scrolls' },
+  { key: 'wondrous', label: 'Wondrous items' },
+  { key: 'other', label: 'Other' },
+];
+
+export function categoryOf(i: Item): Exclude<ItemCategory, 'any'> {
+  const c = (i.category || '').toLowerCase();
+  if (c.includes('weapon') || c.includes('ammunition')) return 'weapon';
+  if (c.includes('armor') || c.includes('shield')) return 'armor';
+  if (c.includes('potion')) return 'potion';
+  if (c.includes('ring')) return 'ring';
+  if (c.includes('rod') || c.includes('staff') || c.includes('wand')) return 'rod/staff/wand';
+  if (c.includes('scroll')) return 'scroll';
+  if (c.includes('wondrous')) return 'wondrous';
+  return 'other';
+}
+
+function matchesCategory(i: Item, cat: ItemCategory): boolean {
+  return cat === 'any' || categoryOf(i) === cat;
+}
+
 // Rarity weights per treasure tier (roughly DMG-shaped: higher tiers skew rarer).
 const TIER_WEIGHTS: Record<Tier, Record<Rarity, number>> = {
   minor: { Common: 10, Uncommon: 7, Rare: 1, 'Very Rare': 0, Legendary: 0, Artifact: 0 },
@@ -77,8 +118,13 @@ function rollCoins(tier: Tier): string {
 }
 
 /** Generate a loot pile: coins + a few items (magic weighted by tier). */
-export function generateLoot(allItems: Item[], tier: Tier, itemCount: number): LootResult {
-  const magic = allItems.filter(isMagic);
+export function generateLoot(
+  allItems: Item[],
+  tier: Tier,
+  itemCount: number,
+  category: ItemCategory = 'any',
+): LootResult {
+  const magic = allItems.filter((i) => isMagic(i) && matchesCategory(i, category));
   const items: Item[] = [];
   const weights = TIER_WEIGHTS[tier];
   for (let i = 0; i < itemCount; i++) {
@@ -88,9 +134,14 @@ export function generateLoot(allItems: Item[], tier: Tier, itemCount: number): L
   return { coins: rollCoins(tier), items };
 }
 
-/** Roll N real magic items of (or near) a chosen rarity from the compendium. */
-export function rollMagicItems(allItems: Item[], rarity: Rarity | 'any', count: number): Item[] {
-  let pool = allItems.filter(isMagic);
+/** Roll N real magic items of (or near) a chosen rarity + category. */
+export function rollMagicItems(
+  allItems: Item[],
+  rarity: Rarity | 'any',
+  count: number,
+  category: ItemCategory = 'any',
+): Item[] {
+  let pool = allItems.filter((i) => isMagic(i) && matchesCategory(i, category));
   if (rarity !== 'any') pool = pool.filter((i) => baseRarity(i.rarity) === rarity);
   const out: Item[] = [];
   for (let i = 0; i < count && pool.length; i++) out.push(pick(pool));

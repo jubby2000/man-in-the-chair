@@ -14,9 +14,12 @@ import {
   generateLoot,
   rollMagicItems,
   baseRarity,
+  categoryOf,
   RARITY_ORDER,
+  ITEM_CATEGORIES,
   type Tier,
   type Rarity,
+  type ItemCategory,
   type LootResult,
 } from '../lib/loot';
 
@@ -29,11 +32,22 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'npc', label: 'NPC' },
 ];
 
+async function copyToClipboard(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function GeneratorsPanel({ onClose }: PanelComponentProps) {
   const items = useStore((s) => s.compendium.items);
   const selectEntry = useStore((s) => s.selectEntry);
   const appendNotes = useStore((s) => s.appendNotes);
   const addCombatant = useStore((s) => s.addCombatant);
+  const ensurePanel = useStore((s) => s.ensurePanel);
+  const showToast = useStore((s) => s.showToast);
   const [tab, setTab] = useState<Tab>('loot');
 
   return (
@@ -51,24 +65,90 @@ export function GeneratorsPanel({ onClose }: PanelComponentProps) {
       </div>
       <div className="gen-body">
         {tab === 'loot' && (
-          <LootTab items={items} onSelect={selectEntry} onNotes={appendNotes} />
+          <LootTab items={items} onSelect={selectEntry} onNotes={appendNotes} onToast={showToast} />
         )}
         {tab === 'magic' && (
-          <MagicTab items={items} onSelect={selectEntry} onNotes={appendNotes} />
+          <MagicTab items={items} onSelect={selectEntry} onNotes={appendNotes} onToast={showToast} />
         )}
         {tab === 'names' && <NamesTab onNotes={appendNotes} />}
-        {tab === 'npc' && <NpcTab onNotes={appendNotes} addCombatant={addCombatant} />}
+        {tab === 'npc' && (
+          <NpcTab
+            onNotes={appendNotes}
+            addCombatant={addCombatant}
+            ensurePanel={ensurePanel}
+            onToast={showToast}
+          />
+        )}
       </div>
     </Panel>
   );
 }
 
-function ItemLink({ item, onSelect }: { item: Item; onSelect: (k: 'items', id: string) => void }) {
+// Expandable item row: click to show the full description, with Detail + Copy
+// buttons. Copy puts "Name\n\nDescription" on the clipboard for sharing.
+function ItemRow({
+  item,
+  onSelect,
+  onToast,
+}: {
+  item: Item;
+  onSelect: (k: 'items', id: string) => void;
+  onToast: (m: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const copy = async () => {
+    const text = `${item.name}\n\n${item.desc || '(no description)'}`;
+    onToast((await copyToClipboard(text)) ? `Copied “${item.name}”` : 'Copy failed');
+  };
   return (
-    <li className="list-item" onClick={() => onSelect('items', item.id)}>
-      <span>{item.name}</span>
-      <span className="meta">{item.rarity || item.category}</span>
+    <li className="list-item gen-item" style={{ display: 'block' }}>
+      <div className="gen-item-head">
+        <span className="gen-item-name" onClick={() => setOpen((o) => !o)}>
+          <span className="gen-item-caret">{open ? '▾' : '▸'}</span> {item.name}
+        </span>
+        <span className="gen-item-actions">
+          <span className="meta">{item.rarity || item.category}</span>
+          <button
+            className="btn sm ghost"
+            title="Copy name & description"
+            onClick={(e) => {
+              e.stopPropagation();
+              void copy();
+            }}
+          >
+            ⧉
+          </button>
+          <button
+            className="btn sm ghost"
+            title="Open in Detail panel"
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelect('items', item.id);
+            }}
+          >
+            ↗
+          </button>
+        </span>
+      </div>
+      {open && (
+        <div className="gen-item-desc">
+          {item.desc ? item.desc : <span className="meta">No description available.</span>}
+        </div>
+      )}
     </li>
+  );
+}
+
+// Shared category filter dropdown.
+function CategorySelect({ value, onChange }: { value: ItemCategory; onChange: (c: ItemCategory) => void }) {
+  return (
+    <select className="select" value={value} onChange={(e) => onChange(e.target.value as ItemCategory)} title="Item type">
+      {ITEM_CATEGORIES.map((c) => (
+        <option key={c.key} value={c.key}>
+          {c.label}
+        </option>
+      ))}
+    </select>
   );
 }
 
@@ -77,16 +157,19 @@ function LootTab({
   items,
   onSelect,
   onNotes,
+  onToast,
 }: {
   items: Item[];
   onSelect: (k: 'items', id: string) => void;
   onNotes: (t: string) => void;
+  onToast: (m: string) => void;
 }) {
   const [tier, setTier] = useState<Tier>('moderate');
   const [count, setCount] = useState(3);
+  const [category, setCategory] = useState<ItemCategory>('any');
   const [result, setResult] = useState<LootResult | null>(null);
 
-  const roll = () => setResult(generateLoot(items, tier, count));
+  const roll = () => setResult(generateLoot(items, tier, count, category));
   const toNotes = () => {
     if (!result) return;
     const lines = [`Loot (${tier}): ${result.coins}`, ...result.items.map((i) => `  • ${i.name} (${i.rarity ?? i.category})`)];
@@ -101,6 +184,7 @@ function LootTab({
           <option value="moderate">Moderate hoard</option>
           <option value="major">Major hoard</option>
         </select>
+        <CategorySelect value={category} onChange={setCategory} />
         <select className="select" value={count} onChange={(e) => setCount(+e.target.value)}>
           {[1, 2, 3, 4, 5, 6].map((n) => (
             <option key={n} value={n}>
@@ -118,14 +202,14 @@ function LootTab({
           {result.items.length ? (
             <ul className="list">
               {result.items.map((it, i) => (
-                <ItemLink key={it.id + i} item={it} onSelect={onSelect} />
+                <ItemRow key={it.id + i} item={it} onSelect={onSelect} onToast={onToast} />
               ))}
             </ul>
           ) : (
-            <div className="empty">No magic items at this tier in the current compendium.</div>
+            <div className="empty">No matching magic items at this tier/type in the current compendium.</div>
           )}
           <button className="btn sm" onClick={toNotes}>
-            Copy to Notes
+            Copy list to Notes
           </button>
         </div>
       )}
@@ -138,29 +222,39 @@ function MagicTab({
   items,
   onSelect,
   onNotes,
+  onToast,
 }: {
   items: Item[];
   onSelect: (k: 'items', id: string) => void;
   onNotes: (t: string) => void;
+  onToast: (m: string) => void;
 }) {
   const [mode, setMode] = useState<'real' | 'homebrew'>('real');
   const [rarity, setRarity] = useState<Rarity | 'any'>('any');
+  const [category, setCategory] = useState<ItemCategory>('any');
   const [count, setCount] = useState(1);
   const [real, setReal] = useState<Item[] | null>(null);
   const [brew, setBrew] = useState<HomebrewItem | null>(null);
 
-  const availableRarities = useMemo(() => {
-    const present = new Set<string>();
+  // only offer rarities / categories actually present in the magic pool
+  const { rarities } = useMemo(() => {
+    const rSet = new Set<string>();
     for (const i of items) {
       const r = baseRarity(i.rarity);
-      if (r) present.add(r);
+      if (r) rSet.add(r);
     }
-    return RARITY_ORDER.filter((r) => present.has(r));
+    return { rarities: RARITY_ORDER.filter((r) => rSet.has(r)), categoryOf };
   }, [items]);
 
   const roll = () => {
-    if (mode === 'real') setReal(rollMagicItems(items, rarity, count));
+    if (mode === 'real') setReal(rollMagicItems(items, rarity, count, category));
     else setBrew(generateHomebrewItem());
+  };
+
+  const copyBrew = async () => {
+    if (!brew) return;
+    const ok = await copyToClipboard(`${brew.name}\n\n${brew.effect}\n\nQuirk: ${brew.quirk}`);
+    onToast(ok ? `Copied “${brew.name}”` : 'Copy failed');
   };
 
   return (
@@ -174,12 +268,13 @@ function MagicTab({
           <>
             <select className="select" value={rarity} onChange={(e) => setRarity(e.target.value as Rarity | 'any')}>
               <option value="any">Any rarity</option>
-              {availableRarities.map((r) => (
+              {rarities.map((r) => (
                 <option key={r} value={r}>
                   {r}
                 </option>
               ))}
             </select>
+            <CategorySelect value={category} onChange={setCategory} />
             <select className="select" value={count} onChange={(e) => setCount(+e.target.value)}>
               {[1, 2, 3, 4, 5].map((n) => (
                 <option key={n} value={n}>
@@ -199,17 +294,17 @@ function MagicTab({
           {real.length ? (
             <ul className="list">
               {real.map((it, i) => (
-                <ItemLink key={it.id + i} item={it} onSelect={onSelect} />
+                <ItemRow key={it.id + i} item={it} onSelect={onSelect} onToast={onToast} />
               ))}
             </ul>
           ) : (
-            <div className="empty">No magic items match that rarity in the current compendium.</div>
+            <div className="empty">No magic items match that rarity/type in the current compendium.</div>
           )}
           <button
             className="btn sm"
             onClick={() => onNotes('Magic items:\n' + real.map((i) => `  • ${i.name} (${i.rarity})`).join('\n'))}
           >
-            Copy to Notes
+            Copy list to Notes
           </button>
         </div>
       )}
@@ -221,12 +316,14 @@ function MagicTab({
             <div className="gen-card-line">{brew.effect}</div>
             <div className="gen-card-quirk">{brew.quirk}</div>
           </div>
-          <button
-            className="btn sm"
-            onClick={() => onNotes(`${brew.name}\n  ${brew.effect}\n  Quirk: ${brew.quirk}`)}
-          >
-            Copy to Notes
-          </button>
+          <div className="row-gap">
+            <button className="btn sm" onClick={() => onNotes(`${brew.name}\n  ${brew.effect}\n  Quirk: ${brew.quirk}`)}>
+              Copy to Notes
+            </button>
+            <button className="btn sm ghost" onClick={() => void copyBrew()}>
+              ⧉ Clipboard
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -286,6 +383,8 @@ function NamesTab({ onNotes }: { onNotes: (t: string) => void }) {
 function NpcTab({
   onNotes,
   addCombatant,
+  ensurePanel,
+  onToast,
 }: {
   onNotes: (t: string) => void;
   addCombatant: (c: {
@@ -298,11 +397,33 @@ function NpcTab({
     conditions: string[];
     isPC: boolean;
   }) => void;
+  ensurePanel: (p: 'initiative') => void;
+  onToast: (m: string) => void;
 }) {
   const [npc, setNpc] = useState<GeneratedNPC | null>(null);
 
   const npcText = (n: GeneratedNPC) =>
     `${n.name} — ${n.race} ${n.occupation}\n  Appearance: ${n.appearance}\n  Trait: ${n.trait}\n  Ideal: ${n.ideal} · Bond: ${n.bond} · Flaw: ${n.flaw}\n  Hook: ${n.hook}`;
+
+  const toCombat = (n: GeneratedNPC) => {
+    ensurePanel('initiative'); // surface the tracker if it isn't shown
+    addCombatant({
+      name: n.name,
+      initiative: 0,
+      ac: 10,
+      maxHp: 4,
+      currentHp: 4,
+      tempHp: 0,
+      conditions: [],
+      isPC: false,
+    });
+    onToast(`${n.name} added to the Initiative tracker`);
+  };
+
+  const copyNpc = async (n: GeneratedNPC) => {
+    const ok = await copyToClipboard(npcText(n));
+    onToast(ok ? `Copied “${n.name}”` : 'Copy failed');
+  };
 
   return (
     <div className="gen-tab">
@@ -329,22 +450,10 @@ function NpcTab({
             <button className="btn sm" onClick={() => onNotes(npcText(npc))}>
               Copy to Notes
             </button>
-            <button
-              className="btn sm"
-              title="Add as a commoner-style combatant"
-              onClick={() =>
-                addCombatant({
-                  name: npc.name,
-                  initiative: 0,
-                  ac: 10,
-                  maxHp: 4,
-                  currentHp: 4,
-                  tempHp: 0,
-                  conditions: [],
-                  isPC: false,
-                })
-              }
-            >
+            <button className="btn sm ghost" onClick={() => void copyNpc(npc)}>
+              ⧉ Clipboard
+            </button>
+            <button className="btn sm" title="Add to the Initiative tracker" onClick={() => toCombat(npc)}>
               + Combat
             </button>
           </div>

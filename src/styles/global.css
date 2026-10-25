@@ -1222,3 +1222,34 @@ select.select {
   font-style: italic;
   margin-top: 6px;
 }
+
+/* ---- Generator item rows (expandable + copy) ---- */
+.gen-item-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.gen-item-name {
+  cursor: pointer;
+  font-weight: 500;
+}
+.gen-item-caret {
+  color: var(--text-faint);
+  font-size: 10px;
+}
+.gen-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.gen-item-desc {
+  margin-top: 6px;
+  padding: 8px 10px;
+  background: var(--bg-elev);
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-dim);
+  white-space: pre-wrap;
+}
