@@ -1294,3 +1294,106 @@ select.select {
   border-top: 1px solid var(--border-soft);
   background: var(--bg-elev);
 }
+
+/* ---- Command palette (global search) ---- */
+.cmdk-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: rgba(5, 5, 6, 0.55);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 12vh;
+  animation: fade-in 0.12s ease;
+}
+.cmdk {
+  width: min(560px, 92vw);
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.cmdk-input {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border-soft);
+  color: var(--text);
+  font-size: 16px;
+  padding: 16px 18px;
+  font-family: inherit;
+}
+.cmdk-input:focus {
+  outline: none;
+}
+.cmdk-results {
+  overflow-y: auto;
+  flex: 1;
+  padding: 6px;
+}
+.cmdk-hint {
+  color: var(--text-faint);
+  font-size: 13px;
+  padding: 18px;
+  text-align: center;
+}
+.cmdk-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  text-align: left;
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+}
+.cmdk-row.active {
+  background: var(--accent-soft);
+}
+.cmdk-row.active .cmdk-name {
+  color: var(--accent-2);
+}
+.cmdk-name {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cmdk-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.cmdk-metatext {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+.cmdk-kind {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--text-dim);
+  background: var(--bg-elev-2);
+  border-radius: var(--radius-pill);
+  padding: 2px 8px;
+}
+.cmdk-footer {
+  display: flex;
+  gap: 14px;
+  padding: 8px 14px;
+  border-top: 1px solid var(--border-soft);
+  font-size: 11px;
+  color: var(--text-faint);
+  background: var(--bg-elev);
+}

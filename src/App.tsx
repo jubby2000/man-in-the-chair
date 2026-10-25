@@ -15,6 +15,7 @@ import { GeneratorsPanel } from './panels/GeneratorsPanel';
 import { ImportDialog } from './components/ImportDialog';
 import { Toast } from './components/Toast';
 import { QuickRoll } from './components/QuickRoll';
+import { CommandPalette } from './components/CommandPalette';
 import { SettingsMenu } from './components/SettingsMenu';
 import { useThemeStore } from './theme/useThemeStore';
 import { useDiceSetStore } from './theme/diceSets';
@@ -180,6 +181,13 @@ export default function App() {
           </select>
         )}
 
+        <button
+          className="btn icon"
+          title="Search everything (⌘K / Ctrl-K)"
+          onClick={() => window.dispatchEvent(new Event('mitc:open-search'))}
+        >
+          🔍
+        </button>
         <button className="btn" onClick={() => setShowImport(true)}>
           Import
         </button>
@@ -215,6 +223,7 @@ export default function App() {
       {showImport && <ImportDialog onClose={() => setShowImport(false)} />}
       <Toast />
       <QuickRoll />
+      <CommandPalette />
     </div>
   );
 }
