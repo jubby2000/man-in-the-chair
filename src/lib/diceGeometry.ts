@@ -150,17 +150,28 @@ function d10Geometry(radius = 0.85): THREE.BufferGeometry {
   }
 
   const positions: number[] = [];
+  const center = new THREE.Vector3(0, 0, 0);
+  // Emit a triangle with winding corrected so its normal points away from the
+  // die center — guarantees outward-facing faces regardless of vertex order.
   const pushTri = (a: THREE.Vector3, b: THREE.Vector3, c: THREE.Vector3) => {
-    positions.push(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z);
+    const ab = new THREE.Vector3().subVectors(b, a);
+    const ac = new THREE.Vector3().subVectors(c, a);
+    const n = new THREE.Vector3().crossVectors(ab, ac);
+    const triCenter = new THREE.Vector3().add(a).add(b).add(c).multiplyScalar(1 / 3);
+    const outward = new THREE.Vector3().subVectors(triCenter, center);
+    if (n.dot(outward) < 0) {
+      // flip winding
+      positions.push(a.x, a.y, a.z, c.x, c.y, c.z, b.x, b.y, b.z);
+    } else {
+      positions.push(a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z);
+    }
   };
 
   // Each kite face = two triangles. 5 kites around the top apex, 5 around bottom.
   for (let i = 0; i < 5; i++) {
     const next = (i + 1) % 5;
-    // top kite: top apex -> upper[i] -> lower[i] -> upper[next]
     pushTri(top, upper[i], lower[i]);
     pushTri(top, lower[i], upper[next]);
-    // bottom kite: bottom apex -> lower[i] -> upper[next] -> lower[next]
     pushTri(bottom, lower[i], upper[next]);
     pushTri(bottom, upper[next], lower[next]);
   }

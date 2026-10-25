@@ -7,29 +7,22 @@ import { useStore } from '../store/useStore';
 import { diceToRender, combineFaces, type RollResult, type RenderDie } from '../lib/dice';
 import { faceMapFor, geometryFor, readUpFace, type FaceMap } from '../lib/diceGeometry';
 import { playClack, setDiceMuted, isDiceMuted } from '../lib/diceSound';
+import { useDiceSetStore, type DiceSet } from '../theme/diceSets';
 
-const GRAVITY = -30;
-const FLOOR_Y = -4;
-const RESTITUTION = 0.55; // bounciness (0 = dead, 1 = perfectly elastic)
-const FRICTION = 0.25;
+const GRAVITY = -40;
+const FLOOR_Y = 0;
+const RESTITUTION = 0.5; // bounciness (0 = dead, 1 = perfectly elastic)
+const FRICTION = 0.3;
 const SETTLE_SPEED = 0.2; // below this linear+angular speed a die is "resting"
 const SETTLE_FRAMES = 10; // consecutive calm frames before we lock a value
 const MAX_ROLL_MS = 5000; // hard cap: force-settle after this so UI never hangs
+// Tray half-extents (world units). Walls bound this box; dice spawn inside it.
+const TRAY_HALF_X = 6;
+const TRAY_HALF_Z = 4;
 
 // Shared physics materials so die<->ground / die<->die ContactMaterials control bounce.
 const DIE_MAT = new CANNON.Material('die');
 const GROUND_MAT = new CANNON.Material('ground');
-
-// Per-die-type face colors.
-const DIE_COLORS: Record<number, string> = {
-  4: '#e07a5f',
-  6: '#c86bff',
-  8: '#4dd2c0',
-  10: '#f2c14e',
-  12: '#6ba8ff',
-  20: '#c2f04a',
-  100: '#f2c14e',
-};
 
 interface DieHandle {
   sides: number;
@@ -91,9 +84,9 @@ function labelQuaternion(normal: THREE.Vector3): THREE.Quaternion {
 }
 
 /** One die: a mesh + a number label on every face, synced to its physics body. */
-function Die({ handle }: { handle: DieHandle }) {
+function Die({ handle, set }: { handle: DieHandle; set: DiceSet }) {
   const groupRef = useRef<THREE.Group>(null);
-  const color = DIE_COLORS[handle.sides] ?? '#c86bff';
+  const color = set.perType?.[handle.sides] ?? set.body;
   const geometry = useMemo(() => geometryFor(handle.sides), [handle.sides]);
   const labelSize = handle.sides === 20 || handle.sides === 12 ? 0.34 : 0.4;
 
@@ -111,10 +104,11 @@ function Die({ handle }: { handle: DieHandle }) {
         <meshStandardMaterial
           color={color}
           emissive={color}
-          emissiveIntensity={0.1}
-          metalness={0.15}
-          roughness={0.45}
+          emissiveIntensity={set.emissiveIntensity}
+          metalness={set.metalness}
+          roughness={set.roughness}
           flatShading
+          side={THREE.DoubleSide}
         />
       </mesh>
       {handle.faces.map((f, i) => {
@@ -127,11 +121,11 @@ function Die({ handle }: { handle: DieHandle }) {
             position={[pos.x, pos.y, pos.z]}
             quaternion={quat}
             fontSize={labelSize}
-            color="#0a0c0f"
+            color={set.ink}
             anchorX="center"
             anchorY="middle"
-            outlineWidth={0.012}
-            outlineColor="#ffffff"
+            outlineWidth={set.outline ? 0.012 : 0}
+            outlineColor={set.outline ?? '#000000'}
           >
             {f.value}
           </Text>
@@ -143,9 +137,11 @@ function Die({ handle }: { handle: DieHandle }) {
 
 function DiceScene({
   result,
+  set,
   onSettled,
 }: {
   result: RollResult;
+  set: DiceSet;
   onSettled: (total: number, values: number[]) => void;
 }) {
   const specs = useMemo(() => diceToRender(result), [result]);
@@ -181,20 +177,32 @@ function DiceScene({
       b.position.set(x, 0, z);
       world.addBody(b);
     };
-    wall(-7, 0, Math.PI / 2);
-    wall(7, 0, -Math.PI / 2);
-    wall(0, -6, 0);
-    wall(0, 6, Math.PI);
+    // Box walls at the tray extents keep every die on screen.
+    wall(-TRAY_HALF_X, 0, Math.PI / 2);
+    wall(TRAY_HALF_X, 0, -Math.PI / 2);
+    wall(0, -TRAY_HALF_Z, 0);
+    wall(0, TRAY_HALF_Z, Math.PI);
+    // a ceiling so a hard throw can't launch a die out the top
+    const ceiling = new CANNON.Body({ mass: 0, material: GROUND_MAT });
+    ceiling.addShape(new CANNON.Plane());
+    ceiling.quaternion.setFromEuler(Math.PI / 2, 0, 0);
+    ceiling.position.set(0, 10, 0);
+    world.addBody(ceiling);
 
     const built: DieHandle[] = specs.map((d, index) => {
       const geometry = geometryFor(d.sides);
       const faces = faceMapFor(d.sides, geometry);
       geometry.dispose();
       const body = makeBody(d.sides);
-      const col = index % 4;
-      body.position.set((col - 1.5) * 2.2 + rand(-0.4, 0.4), 5 + Math.random() * 2.5, rand(-1, 1));
-      body.velocity.set(rand(-4, 4), rand(-2, 1), rand(-4, 4));
-      body.angularVelocity.set(rand(-12, 12), rand(-12, 12), rand(-12, 12));
+      // spawn inside the tray, above the floor, thrown gently inward
+      const cols = 4;
+      const col = index % cols;
+      const spawnX = ((col - (cols - 1) / 2) / (cols / 2)) * (TRAY_HALF_X - 1.5) + rand(-0.3, 0.3);
+      const spawnZ = rand(-(TRAY_HALF_Z - 1.5), TRAY_HALF_Z - 1.5);
+      body.position.set(spawnX, 5 + Math.random() * 2, spawnZ);
+      // bias velocity toward the tray center so dice don't pile on a wall
+      body.velocity.set(-spawnX * 0.6 + rand(-2, 2), rand(-1, 1), -spawnZ * 0.6 + rand(-2, 2));
+      body.angularVelocity.set(rand(-14, 14), rand(-14, 14), rand(-14, 14));
       body.quaternion.setFromEuler(rand(0, Math.PI), rand(0, Math.PI), rand(0, Math.PI));
       body.addEventListener('collide', (e: { contact: CANNON.ContactEquation }) => {
         const v = Math.abs(e.contact.getImpactVelocityAlongNormal());
@@ -254,11 +262,10 @@ function DiceScene({
     <>
       <hemisphereLight args={['#ffffff', '#2a2a33', 0.95]} />
       <ambientLight intensity={0.55} />
-      <directionalLight position={[4, 10, 6]} intensity={1.1} castShadow />
-      <directionalLight position={[-5, 6, -4]} intensity={0.7} />
-      <pointLight position={[0, -3, 5]} intensity={0.5} color="#c2f04a" />
+      <directionalLight position={[4, 14, 6]} intensity={1.1} castShadow />
+      <directionalLight position={[-6, 10, -4]} intensity={0.7} />
       {handles.map((h) => (
-        <Die key={h.index} handle={h} />
+        <Die key={h.index} handle={h} set={set} />
       ))}
     </>
   );
@@ -286,6 +293,7 @@ export function DiceOverlay() {
   const result = useStore((s) => s.diceOverlay);
   const clearDice = useStore((s) => s.clearDice);
   const recordLanded = useStore((s) => s.recordLanded);
+  const diceSet = useDiceSetStore((s) => s.current());
   const [landed, setLanded] = useState<{ total: number; values: number[] } | null>(null);
   const [muted, setMuted] = useState(isDiceMuted());
 
@@ -310,9 +318,10 @@ export function DiceOverlay() {
         {muted ? '🔇' : '🔊'}
       </button>
       <div className="dice-canvas">
-        <Canvas shadows camera={{ position: [0, 7, 11], fov: 45 }} dpr={[1, 2]}>
+        <Canvas shadows camera={{ position: [0, 15, 5], fov: 45 }} dpr={[1, 2]}>
           <DiceScene
             result={result}
+            set={diceSet}
             onSettled={(total, values) => {
               setLanded({ total, values });
               recordLanded(result.notation, total, values);

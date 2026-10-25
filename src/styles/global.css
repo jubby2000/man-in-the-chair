@@ -1133,3 +1133,46 @@ select.select {
   padding: 8px 14px 16px;
   overflow: auto;
 }
+
+/* ---- Global quick-roll popup ---- */
+.quickroll-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  background: rgba(5, 5, 6, 0.5);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 18vh;
+  animation: fade-in 0.12s ease;
+}
+.quickroll {
+  width: min(420px, 90vw);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 16px 18px;
+}
+.quickroll-title {
+  font-weight: 700;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-dim);
+  margin-bottom: 10px;
+}
+.quickroll-hint {
+  margin-top: 12px;
+  font-size: 11px;
+  color: var(--text-faint);
+}
+.quickroll-hint kbd {
+  background: var(--bg-elev-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+}

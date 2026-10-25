@@ -13,8 +13,11 @@ import { RulesPanel } from './panels/RulesPanel';
 import { PartyPanel } from './panels/PartyPanel';
 import { ImportDialog } from './components/ImportDialog';
 import { Toast } from './components/Toast';
+import { QuickRoll } from './components/QuickRoll';
 import { ThemePicker } from './components/ThemePicker';
+import { DiceSetPicker } from './components/DiceSetPicker';
 import { useThemeStore } from './theme/useThemeStore';
+import { useDiceSetStore } from './theme/diceSets';
 
 // 3D overlay (three.js) is heavy — load it only when a roll happens.
 const DiceOverlay = lazy(() =>
@@ -60,12 +63,14 @@ export default function App() {
 
   const [showImport, setShowImport] = useState(false);
   const initTheme = useThemeStore((s) => s.init);
+  const initDiceSet = useDiceSetStore((s) => s.init);
   const width = useContainerWidth();
 
   useEffect(() => {
     void init();
     void initTheme();
-  }, [init, initTheme]);
+    void initDiceSet();
+  }, [init, initTheme, initDiceSet]);
 
   const active = presets.find((p) => p.id === activePresetId) ?? presets[0];
 
@@ -188,6 +193,7 @@ export default function App() {
         <button className="btn" onClick={() => setShowImport(true)}>
           Import
         </button>
+        <DiceSetPicker />
         <ThemePicker />
       </div>
 
@@ -219,6 +225,7 @@ export default function App() {
       </Suspense>
       {showImport && <ImportDialog onClose={() => setShowImport(false)} />}
       <Toast />
+      <QuickRoll />
     </div>
   );
 }
