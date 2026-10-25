@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 
 interface PanelProps {
   title: string;
@@ -6,10 +6,18 @@ interface PanelProps {
   tools?: ReactNode;
   flush?: boolean;
   onClose?: () => void;
+  /** When this value changes, the panel body scrolls back to the top. */
+  scrollResetKey?: string | number | null;
 }
 
 /** Panel chrome. The header is the react-grid-layout drag handle. */
-export function Panel({ title, children, tools, flush, onClose }: PanelProps) {
+export function Panel({ title, children, tools, flush, onClose, scrollResetKey }: PanelProps) {
+  const bodyRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (bodyRef.current) bodyRef.current.scrollTop = 0;
+  }, [scrollResetKey]);
+
   return (
     <div className="panel">
       <div className="panel-header drag-handle">
@@ -35,7 +43,9 @@ export function Panel({ title, children, tools, flush, onClose }: PanelProps) {
           )}
         </div>
       </div>
-      <div className={flush ? 'panel-body flush' : 'panel-body'}>{children}</div>
+      <div ref={bodyRef} className={flush ? 'panel-body flush' : 'panel-body'}>
+        {children}
+      </div>
     </div>
   );
 }

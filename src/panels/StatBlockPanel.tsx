@@ -266,7 +266,7 @@ export function StatBlockPanel({ onClose }: PanelComponentProps) {
   }
 
   return (
-    <Panel onClose={onClose} title="Detail">
+    <Panel onClose={onClose} title="Detail" scrollResetKey={selected ? `${selected.kind}:${selected.id}` : null}>
       {body ?? <div className="empty">Select anything in the Compendium to see its details here.</div>}
     </Panel>
   );
