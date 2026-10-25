@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../store/useStore';
+import { MAX_DICE, countPhysicalDice } from '../lib/dice';
 
 // Global quick-roll: press "r" (or Ctrl/Cmd+R-free "/") anywhere to pop a small
 // dice input; type notation and Enter to roll, Esc to close. Ignores keypresses
@@ -12,7 +13,7 @@ export function QuickRoll() {
   const diceOpen = useStore((s) => s.diceOverlay !== null);
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -28,7 +29,7 @@ export function QuickRoll() {
       } else if (open && e.key === 'Escape') {
         setOpen(false);
         setInput('');
-        setError(false);
+        setError(null);
       }
     };
     window.addEventListener('keydown', onKey);
@@ -48,12 +49,13 @@ export function QuickRoll() {
   }, [diceOpen, open]);
 
   const roll = (notation: string) => {
-    const r = rollDice(notation);
-    if (!r) {
-      setError(true);
+    const count = countPhysicalDice(notation);
+    if (count !== null && count > MAX_DICE) {
+      setError(`I can roll up to ${MAX_DICE} dice at once — that’s ${count}.`);
       return;
     }
-    setError(false);
+    const r = rollDice(notation);
+    setError(r ? null : `Couldn’t parse that — try 3d8+2.`);
   };
 
   if (!open) return null;
@@ -75,16 +77,14 @@ export function QuickRoll() {
             value={input}
             onChange={(e) => {
               setInput(e.target.value);
-              setError(false);
+              setError(null);
             }}
             style={error ? { borderColor: 'var(--danger)' } : undefined}
             autoComplete="off"
           />
         </form>
         {error && (
-          <div style={{ color: 'var(--danger)', fontSize: 12, marginTop: 6 }}>
-            Couldn’t parse that — try <code>3d8+2</code>.
-          </div>
+          <div style={{ color: 'var(--danger)', fontSize: 12, marginTop: 6 }}>{error}</div>
         )}
         <div className="quick-dice" style={{ marginTop: 10 }}>
           {QUICK.map((d) => (

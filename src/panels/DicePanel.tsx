@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Panel } from '../components/Panel';
 import type { PanelComponentProps } from '../types';
 import { useStore } from '../store/useStore';
-import { MAX_DICE } from '../lib/dice';
+import { MAX_DICE, countPhysicalDice } from '../lib/dice';
 
 const QUICK = ['d20', 'd12', 'd10', 'd8', 'd6', 'd4', 'd100', '2d6'];
 
@@ -10,12 +10,16 @@ export function DicePanel({ onClose }: PanelComponentProps) {
   const rollDice = useStore((s) => s.rollDice);
   const rollLog = useStore((s) => s.rollLog);
   const [input, setInput] = useState('');
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const roll = (notation: string) => {
+    const count = countPhysicalDice(notation);
+    if (count !== null && count > MAX_DICE) {
+      setError(`I can roll up to ${MAX_DICE} dice at once — that’s ${count}.`);
+      return;
+    }
     const result = rollDice(notation); // opens the physics overlay
-    if (!result) setError(true);
-    else setError(false);
+    setError(result ? null : `Couldn’t parse that — try 3d8+2.`);
   };
 
   const onSubmit = (e: React.FormEvent) => {
@@ -33,7 +37,7 @@ export function DicePanel({ onClose }: PanelComponentProps) {
             value={input}
             onChange={(e) => {
               setInput(e.target.value);
-              setError(false);
+              setError(null);
             }}
             style={error ? { borderColor: 'var(--danger)' } : undefined}
             autoComplete="off"
@@ -42,11 +46,7 @@ export function DicePanel({ onClose }: PanelComponentProps) {
             Roll
           </button>
         </form>
-        {error && (
-          <div style={{ color: 'var(--danger)', fontSize: 12 }}>
-            Couldn’t parse that. Try something like <code>3d8+2</code>.
-          </div>
-        )}
+        {error && <div style={{ color: 'var(--danger)', fontSize: 12 }}>{error}</div>}
         <div className="quick-dice">
           {QUICK.map((d) => (
             <button key={d} className="quick-die" onClick={() => roll(d)}>
