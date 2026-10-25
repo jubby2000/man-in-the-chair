@@ -88,7 +88,9 @@ function Die({ handle, set }: { handle: DieHandle; set: DiceSet }) {
   const groupRef = useRef<THREE.Group>(null);
   const color = set.perType?.[handle.sides] ?? set.body;
   const geometry = useMemo(() => geometryFor(handle.sides), [handle.sides]);
-  const labelSize = handle.sides === 20 || handle.sides === 12 ? 0.34 : 0.4;
+  // d10 kite faces are narrow and taper to a point, so they need a smaller
+  // label than the broad faces of a d6/d8.
+  const labelSize = handle.sides === 10 ? 0.26 : handle.sides === 20 || handle.sides === 12 ? 0.34 : 0.4;
 
   useFrame(() => {
     const g = groupRef.current;
@@ -114,6 +116,9 @@ function Die({ handle, set }: { handle: DieHandle; set: DiceSet }) {
       {handle.faces.map((f, i) => {
         // push the label just off the surface so it isn't z-fighting
         const pos = f.center.clone().add(f.normal.clone().multiplyScalar(0.02));
+        // d10 kites taper to an apex; the centroid sits too high/low, so pull
+        // the label toward the wider equatorial band for a centered digit.
+        if (handle.sides === 10) pos.y *= 0.55;
         const quat = labelQuaternion(f.normal);
         return (
           <Text
