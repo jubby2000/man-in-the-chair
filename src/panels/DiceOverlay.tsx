@@ -86,11 +86,21 @@ function labelQuaternion(normal: THREE.Vector3): THREE.Quaternion {
 /** One die: a mesh + a number label on every face, synced to its physics body. */
 function Die({ handle, set }: { handle: DieHandle; set: DiceSet }) {
   const groupRef = useRef<THREE.Group>(null);
-  const color = set.perType?.[handle.sides] ?? set.body;
+  const color = set.textureDataUrl ? '#ffffff' : set.perType?.[handle.sides] ?? set.body;
   const geometry = useMemo(() => geometryFor(handle.sides), [handle.sides]);
   // d10 kite faces are narrow and taper to a point, so they need a smaller
   // label than the broad faces of a d6/d8.
   const labelSize = handle.sides === 10 ? 0.26 : handle.sides === 20 || handle.sides === 12 ? 0.34 : 0.4;
+
+  // load the custom image (if any) as a texture, once per data URL
+  const texture = useMemo(() => {
+    if (!set.textureDataUrl) return null;
+    const tex = new THREE.TextureLoader().load(set.textureDataUrl);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    return tex;
+  }, [set.textureDataUrl]);
 
   useFrame(() => {
     const g = groupRef.current;
@@ -105,8 +115,9 @@ function Die({ handle, set }: { handle: DieHandle; set: DiceSet }) {
       <mesh geometry={geometry} castShadow>
         <meshStandardMaterial
           color={color}
-          emissive={color}
-          emissiveIntensity={set.emissiveIntensity}
+          map={texture ?? undefined}
+          emissive={texture ? '#000000' : color}
+          emissiveIntensity={texture ? 0 : set.emissiveIntensity}
           metalness={set.metalness}
           roughness={set.roughness}
           flatShading

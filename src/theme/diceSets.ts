@@ -20,6 +20,10 @@ export interface DiceSet {
   emissiveIntensity: number;
   /** optional per-sides color override, e.g. { 20: '#...' } */
   perType?: Record<number, string>;
+  /** optional image (data URL) applied as the dice body texture */
+  textureDataUrl?: string;
+  /** true for user-uploaded sets stored in IndexedDB */
+  custom?: boolean;
 }
 
 export const DICE_SETS: DiceSet[] = [
@@ -106,26 +110,90 @@ export const DICE_SETS: DiceSet[] = [
   },
 ];
 
-export function diceSetById(id: string): DiceSet {
-  return DICE_SETS.find((d) => d.id === id) ?? DICE_SETS[0];
+export function diceSetById(id: string, custom: DiceSet[] = []): DiceSet {
+  return [...DICE_SETS, ...custom].find((d) => d.id === id) ?? DICE_SETS[0];
+}
+
+/**
+ * Sample an image's average luminance (downscaled) to pick a readable number
+ * color. Returns { ink, outline } appropriate for the image's brightness.
+ */
+async function autoContrastInk(dataUrl: string): Promise<{ ink: string; outline: string }> {
+  try {
+    const img = new Image();
+    img.src = dataUrl;
+    await img.decode();
+    const size = 24;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return { ink: '#ffffff', outline: '#000000' };
+    ctx.drawImage(img, 0, 0, size, size);
+    const { data } = ctx.getImageData(0, 0, size, size);
+    let sum = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      sum += 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
+    }
+    const avg = sum / (data.length / 4);
+    return avg > 140
+      ? { ink: '#0a0c0f', outline: '#ffffff' }
+      : { ink: '#ffffff', outline: '#000000' };
+  } catch {
+    return { ink: '#ffffff', outline: '#000000' };
+  }
 }
 
 interface DiceSetState {
   setId: string;
+  customSets: DiceSet[];
+  all: () => DiceSet[];
   current: () => DiceSet;
   init: () => Promise<void>;
   setDiceSet: (id: string) => void;
+  addCustomSet: (name: string, dataUrl: string) => Promise<DiceSet>;
+  removeCustomSet: (id: string) => void;
 }
 
 export const useDiceSetStore = create<DiceSetState>((set, get) => ({
   setId: 'arcane',
-  current: () => diceSetById(get().setId),
+  customSets: [],
+  all: () => [...DICE_SETS, ...get().customSets],
+  current: () => diceSetById(get().setId, get().customSets),
   init: async () => {
     const setId = await getKV<string>('diceSetId', 'arcane');
-    set({ setId });
+    const customSets = await getKV<DiceSet[]>('customDiceSets', []);
+    set({ setId, customSets });
   },
   setDiceSet: (id) => {
     set({ setId: id });
     void setKV('diceSetId', id);
+  },
+  addCustomSet: async (name, dataUrl) => {
+    const { ink, outline } = await autoContrastInk(dataUrl);
+    const diceSet: DiceSet = {
+      id: `custom-${Date.now().toString(36)}`,
+      name: name.trim() || 'Custom',
+      body: '#ffffff', // tint multiplies the texture; white keeps it true
+      ink,
+      outline,
+      metalness: 0.25,
+      roughness: 0.5,
+      emissiveIntensity: 0,
+      textureDataUrl: dataUrl,
+      custom: true,
+    };
+    const customSets = [...get().customSets, diceSet];
+    set({ customSets, setId: diceSet.id });
+    await setKV('customDiceSets', customSets);
+    void setKV('diceSetId', diceSet.id);
+    return diceSet;
+  },
+  removeCustomSet: (id) => {
+    const customSets = get().customSets.filter((s) => s.id !== id);
+    const setId = get().setId === id ? 'arcane' : get().setId;
+    set({ customSets, setId });
+    void setKV('customDiceSets', customSets);
+    void setKV('diceSetId', setId);
   },
 }));
