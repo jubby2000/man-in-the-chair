@@ -114,11 +114,9 @@ function Die({ handle, set }: { handle: DieHandle; set: DiceSet }) {
         />
       </mesh>
       {handle.faces.map((f, i) => {
-        // push the label just off the surface so it isn't z-fighting
-        const pos = f.center.clone().add(f.normal.clone().multiplyScalar(0.02));
-        // d10 kites taper to an apex; the centroid sits too high/low, so pull
-        // the label toward the wider equatorial band for a centered digit.
-        if (handle.sides === 10) pos.y *= 0.55;
+        // sit the label just off the surface along the face normal (avoids
+        // z-fighting and keeps it on the visible side of the mesh)
+        const pos = f.center.clone().add(f.normal.clone().multiplyScalar(0.03));
         const quat = labelQuaternion(f.normal);
         return (
           <Text
