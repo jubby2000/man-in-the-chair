@@ -153,6 +153,7 @@ interface DiceSetState {
   setDiceSet: (id: string) => void;
   addCustomSet: (name: string, dataUrl: string) => Promise<DiceSet>;
   removeCustomSet: (id: string) => void;
+  renameCustomSet: (id: string, name: string) => void;
 }
 
 export const useDiceSetStore = create<DiceSetState>((set, get) => ({
@@ -195,5 +196,12 @@ export const useDiceSetStore = create<DiceSetState>((set, get) => ({
     set({ customSets, setId });
     void setKV('customDiceSets', customSets);
     void setKV('diceSetId', setId);
+  },
+  renameCustomSet: (id, name) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const customSets = get().customSets.map((s) => (s.id === id ? { ...s, name: trimmed } : s));
+    set({ customSets });
+    void setKV('customDiceSets', customSets);
   },
 }));

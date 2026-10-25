@@ -10,6 +10,7 @@ export function DiceSetPicker() {
   const setDiceSet = useDiceSetStore((s) => s.setDiceSet);
   const addCustomSet = useDiceSetStore((s) => s.addCustomSet);
   const removeCustomSet = useDiceSetStore((s) => s.removeCustomSet);
+  const renameCustomSet = useDiceSetStore((s) => s.renameCustomSet);
   const showToast = useStore((s) => s.showToast);
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -89,9 +90,21 @@ export function DiceSetPicker() {
         <option value="__upload__">＋ Upload image…</option>
       </select>
       {isCustom && (
-        <button className="btn icon sm" title="Remove this custom set" onClick={() => removeCustomSet(setId)}>
-          ✕
-        </button>
+        <>
+          <button
+            className="btn icon sm"
+            title="Rename this custom set"
+            onClick={() => {
+              const name = prompt('Rename dice set:', current.name);
+              if (name && name.trim()) renameCustomSet(setId, name);
+            }}
+          >
+            ✎
+          </button>
+          <button className="btn icon sm" title="Remove this custom set" onClick={() => removeCustomSet(setId)}>
+            ✕
+          </button>
+        </>
       )}
       <input
         ref={fileRef}
