@@ -215,8 +215,10 @@ export const useStore = create<AppState>((set, get) => ({
 
   selectMonster: (id) => set({ selectedMonsterId: id, selectedEntry: id ? { kind: 'monsters', id } : null }),
 
-  selectEntry: (kind, id) =>
-    set({ selectedEntry: { kind, id }, selectedMonsterId: kind === 'monsters' ? id : null }),
+  selectEntry: (kind, id) => {
+    get().ensurePanel('statblock'); // surface the Detail panel if it's hidden
+    set({ selectedEntry: { kind, id }, selectedMonsterId: kind === 'monsters' ? id : null });
+  },
 
   showToast: (message) => set({ toast: { id: Date.now(), message } }),
 
