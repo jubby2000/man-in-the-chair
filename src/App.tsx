@@ -13,9 +13,11 @@ import { RulesPanel } from './panels/RulesPanel';
 import { PartyPanel } from './panels/PartyPanel';
 import { GeneratorsPanel } from './panels/GeneratorsPanel';
 import { ImportDialog } from './components/ImportDialog';
+import { Dropdown } from './components/Dropdown';
 import { Toast } from './components/Toast';
 import { QuickRoll } from './components/QuickRoll';
 import { CommandPalette } from './components/CommandPalette';
+import { ConfirmDialog } from './components/ConfirmDialog';
 import { SettingsMenu } from './components/SettingsMenu';
 import { useThemeStore } from './theme/useThemeStore';
 import { useDiceSetStore } from './theme/diceSets';
@@ -62,6 +64,7 @@ export default function App() {
   const updatePresetLayout = useStore((s) => s.updatePresetLayout);
   const addPreset = useStore((s) => s.addPreset);
   const removePreset = useStore((s) => s.removePreset);
+  const confirmDialog = useStore((s) => s.confirm);
 
   const [showImport, setShowImport] = useState(false);
   const initTheme = useThemeStore((s) => s.init);
@@ -154,7 +157,12 @@ export default function App() {
                   title="Delete preset"
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (confirm(`Delete layout preset “${p.name}”?`)) removePreset(p.id);
+                    void confirmDialog({
+                      title: 'Delete preset',
+                      message: `Delete the layout preset “${p.name}”? This can’t be undone.`,
+                      confirmLabel: 'Delete',
+                      danger: true,
+                    }).then((ok) => ok && removePreset(p.id));
                   }}
                 >
                   ✕
@@ -189,21 +197,15 @@ export default function App() {
         <div className="spacer" />
 
         {missingPanels.length > 0 && (
-          <select
-            className="select"
-            value=""
-            onChange={(e) => {
-              if (e.target.value) addPanel(e.target.value as PanelType);
-            }}
+          <Dropdown<PanelType | ''>
+            value={''}
+            placeholder="+ Add panel"
             title="Add a panel to this preset"
-          >
-            <option value="">+ Add panel…</option>
-            {missingPanels.map((pp) => (
-              <option key={pp} value={pp}>
-                {PANEL_TITLES[pp]}
-              </option>
-            ))}
-          </select>
+            onChange={(v) => {
+              if (v) addPanel(v as PanelType);
+            }}
+            options={missingPanels.map((pp) => ({ value: pp, label: PANEL_TITLES[pp] }))}
+          />
         )}
 
         <button className="btn" onClick={() => setShowImport(true)}>
@@ -242,6 +244,7 @@ export default function App() {
       <Toast />
       <QuickRoll />
       <CommandPalette />
+      <ConfirmDialog />
     </div>
   );
 }

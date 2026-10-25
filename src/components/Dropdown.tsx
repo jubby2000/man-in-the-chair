@@ -51,10 +51,10 @@ export function Dropdown<T extends string>({
   let lastGroup: string | undefined;
 
   return (
-    <div className={`dropdown ${className ?? ''}`} ref={ref}>
+    <div className={`dropdown ${className ?? ''}`} ref={ref} data-open={open}>
       <button
         type="button"
-        className="select dropdown-trigger"
+        className="dropdown-trigger"
         title={title}
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="listbox"

@@ -58,6 +58,17 @@ interface AppState {
   // transient toast
   toast: { id: number; message: string } | null;
   showToast: (message: string) => void;
+
+  // themed confirm dialog (replaces window.confirm)
+  confirmState: {
+    title: string;
+    message: string;
+    confirmLabel: string;
+    danger: boolean;
+    resolve: (ok: boolean) => void;
+  } | null;
+  confirm: (opts: { title: string; message: string; confirmLabel?: string; danger?: boolean }) => Promise<boolean>;
+  resolveConfirm: (ok: boolean) => void;
   /** Append text to the Notes panel's persisted content. */
   appendNotes: (text: string) => Promise<void>;
   /** Bumped whenever notes are changed externally (e.g. generator). */
@@ -154,6 +165,7 @@ export const useStore = create<AppState>((set, get) => ({
   diceOverlay: null,
   rollLog: [],
   toast: null,
+  confirmState: null,
   notesRevision: 0,
   presets: DEFAULT_PRESETS,
   activePresetId: DEFAULT_PRESETS[0].id,
@@ -221,6 +233,16 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   showToast: (message) => set({ toast: { id: Date.now(), message } }),
+
+  confirm: ({ title, message, confirmLabel = 'Confirm', danger = false }) =>
+    new Promise<boolean>((resolve) => {
+      set({ confirmState: { title, message, confirmLabel, danger, resolve } });
+    }),
+  resolveConfirm: (ok) => {
+    const st = get().confirmState;
+    if (st) st.resolve(ok);
+    set({ confirmState: null });
+  },
 
   appendNotes: async (text) => {
     const existing = await getKV<string>('notes', '');

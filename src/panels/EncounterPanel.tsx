@@ -36,6 +36,7 @@ export function EncounterPanel({ onClose }: PanelComponentProps) {
   const removeEncounterTab = useStore((s) => s.removeEncounterTab);
   const setActiveEncounter = useStore((s) => s.setActiveEncounter);
   const selectMonster = useStore((s) => s.selectMonster);
+  const confirmDialog = useStore((s) => s.confirm);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftName, setDraftName] = useState('');
@@ -129,7 +130,12 @@ export function EncounterPanel({ onClose }: PanelComponentProps) {
                   title="Delete encounter"
                   onClick={(ev) => {
                     ev.stopPropagation();
-                    if (confirm(`Delete encounter “${enc.name}”?`)) removeEncounterTab(enc.id);
+                    void confirmDialog({
+                      title: 'Delete encounter',
+                      message: `Delete the encounter “${enc.name}” and its contents?`,
+                      confirmLabel: 'Delete',
+                      danger: true,
+                    }).then((ok) => ok && removeEncounterTab(enc.id));
                   }}
                 >
                   ✕
