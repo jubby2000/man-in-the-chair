@@ -174,6 +174,18 @@ export default function App() {
           </button>
         </div>
 
+        <button
+          className="btn icon search-btn"
+          title="Search everything (⌘K / Ctrl-K)"
+          aria-label="Search everything"
+          onClick={() => window.dispatchEvent(new Event('mitc:open-search'))}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="7" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+        </button>
+
         <div className="spacer" />
 
         {missingPanels.length > 0 && (
@@ -194,13 +206,6 @@ export default function App() {
           </select>
         )}
 
-        <button
-          className="btn icon"
-          title="Search everything (⌘K / Ctrl-K)"
-          onClick={() => window.dispatchEvent(new Event('mitc:open-search'))}
-        >
-          🔍
-        </button>
         <button className="btn" onClick={() => setShowImport(true)}>
           Import
         </button>

@@ -1397,3 +1397,13 @@ select.select {
   color: var(--text-faint);
   background: var(--bg-elev);
 }
+
+.search-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+}
+.search-btn:hover {
+  color: var(--text);
+}
