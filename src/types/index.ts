@@ -44,6 +44,8 @@ export interface Monster {
   legendaryActions: NamedEntry[];
   /** Provenance: 'srd' for bundled, or the id of a user-imported source. */
   source?: string;
+  /** In-universe publication source (e.g. "Volo's Guide to Monsters"), from import. */
+  publication?: string;
 }
 
 export interface Spell {
@@ -61,6 +63,8 @@ export interface Spell {
   higherLevel?: string;
   classes: string[];
   source?: string;
+  /** In-universe publication source (e.g. "Volo's Guide to Monsters"), from import. */
+  publication?: string;
 }
 
 export interface Item {
@@ -78,6 +82,8 @@ export interface Item {
   magic?: boolean;
   desc: string;
   source?: string;
+  /** In-universe publication source (e.g. "Volo's Guide to Monsters"), from import. */
+  publication?: string;
 }
 
 export interface Condition {
@@ -85,6 +91,8 @@ export interface Condition {
   name: string;
   desc: string;
   source?: string;
+  /** In-universe publication source (e.g. "Volo's Guide to Monsters"), from import. */
+  publication?: string;
 }
 
 export interface Rule {
@@ -93,6 +101,8 @@ export interface Rule {
   desc: string;
   subsections?: string[];
   source?: string;
+  /** In-universe publication source (e.g. "Volo's Guide to Monsters"), from import. */
+  publication?: string;
 }
 
 export interface Race {
@@ -104,6 +114,8 @@ export interface Race {
   traits: NamedEntry[];
   desc?: string;
   source?: string;
+  /** In-universe publication source (e.g. "Volo's Guide to Monsters"), from import. */
+  publication?: string;
 }
 
 export interface CharClass {
@@ -115,6 +127,8 @@ export interface CharClass {
   spellcastingAbility?: string;
   features: NamedEntry[];
   source?: string;
+  /** In-universe publication source (e.g. "Volo's Guide to Monsters"), from import. */
+  publication?: string;
 }
 
 export interface Background {
@@ -123,6 +137,8 @@ export interface Background {
   proficiencies?: string;
   traits: NamedEntry[];
   source?: string;
+  /** In-universe publication source (e.g. "Volo's Guide to Monsters"), from import. */
+  publication?: string;
 }
 
 export interface Feat {
@@ -131,6 +147,8 @@ export interface Feat {
   prerequisite?: string;
   desc: string;
   source?: string;
+  /** In-universe publication source (e.g. "Volo's Guide to Monsters"), from import. */
+  publication?: string;
 }
 
 export type CompendiumKind =

@@ -41,6 +41,19 @@ const line = (label: string, value?: string | number) =>
     </div>
   ) : null;
 
+/** Publication-source footer, shown when an imported entry carries one. */
+function PubFooter({ publication }: { publication?: string }) {
+  if (!publication) return null;
+  return (
+    <>
+      <hr className="rule" />
+      <div className="pub-footer">
+        <b>Source.</b> {publication}
+      </div>
+    </>
+  );
+}
+
 function MonsterView({ monster }: { monster: Monster }) {
   const addMonsterToCombat = useStore((s) => s.addMonsterToCombat);
   return (
@@ -85,6 +98,7 @@ function MonsterView({ monster }: { monster: Monster }) {
       <Entries title="Actions" items={monster.actions} />
       <Entries title="Reactions" items={monster.reactions ?? []} />
       <Entries title="Legendary Actions" items={monster.legendaryActions} />
+      <PubFooter publication={monster.publication} />
     </div>
   );
 }
@@ -115,6 +129,7 @@ function ItemView({ item }: { item: Item }) {
           <RollableText>{item.desc}</RollableText>
         </div>
       )}
+      <PubFooter publication={item.publication} />
     </div>
   );
 }
@@ -131,6 +146,7 @@ function RaceView({ race }: { race: Race }) {
       <hr className="rule" />
       <Entries title="Traits" items={race.traits} />
       {race.desc && <div className="entry" style={{ whiteSpace: "pre-wrap" }}><RollableText>{race.desc}</RollableText></div>}
+      <PubFooter publication={race.publication} />
     </div>
   );
 }
@@ -146,6 +162,7 @@ function ClassView({ cls }: { cls: CharClass }) {
       {line('Proficiencies', cls.proficiencies)}
       <hr className="rule" />
       <Entries title="Features" items={cls.features} />
+      <PubFooter publication={cls.publication} />
     </div>
   );
 }
@@ -159,6 +176,7 @@ function BackgroundView({ bg }: { bg: Background }) {
       {line('Proficiencies', bg.proficiencies)}
       <hr className="rule" />
       <Entries items={bg.traits} />
+      <PubFooter publication={bg.publication} />
     </div>
   );
 }
@@ -171,6 +189,7 @@ function FeatView({ feat }: { feat: Feat }) {
       <hr className="rule" />
       {line('Prerequisite', feat.prerequisite)}
       {feat.desc && <div className="entry" style={{ whiteSpace: "pre-wrap", marginTop: 8 }}><RollableText>{feat.desc}</RollableText></div>}
+      <PubFooter publication={feat.publication} />
     </div>
   );
 }
@@ -238,6 +257,7 @@ export function StatBlockPanel({ onClose }: PanelComponentProps) {
                   <b>At Higher Levels.</b> <RollableText>{sp.higherLevel}</RollableText>
                 </div>
               )}
+              <PubFooter publication={sp.publication} />
             </div>
           );
         break;

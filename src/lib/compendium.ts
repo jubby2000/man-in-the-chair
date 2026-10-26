@@ -14,12 +14,32 @@ import type {
   Spell,
 } from '../types';
 import { db } from './db';
-import { COMPENDIUM_KINDS } from './import';
+import { COMPENDIUM_KINDS, normalizePublication } from './import';
 
 const EMPTY: Compendium = {
   monsters: [], spells: [], items: [], conditions: [], rules: [],
   races: [], classes: [], backgrounds: [], feats: [],
 };
+
+type NamedTraited = {
+  id: string;
+  name: string;
+  source?: string;
+  publication?: string;
+  traits?: { name: string; desc: string }[];
+};
+
+// Backfill `publication` for entries imported before the importer extracted it:
+// if there's no publication but a "Source" trait exists, lift it out and drop
+// the trait so it stops double-rendering. Idempotent and cheap.
+function backfillPublication<T extends NamedTraited>(entry: T): T {
+  if (entry.publication || !Array.isArray(entry.traits)) return entry;
+  const idx = entry.traits.findIndex((t) => t.name?.trim().toLowerCase() === 'source');
+  if (idx === -1) return entry;
+  const raw = entry.traits[idx].desc ?? '';
+  const traits = entry.traits.filter((_, i) => i !== idx);
+  return { ...entry, publication: normalizePublication(raw) || undefined, traits };
+}
 
 // Lazily load bundled edition data so the initial bundle stays small. Only the
 // five bundled kinds exist on disk; the rest start empty (import-only).
@@ -66,7 +86,7 @@ function applySources(base: Compendium, sources: ImportedSource[]): Compendium {
     for (const src of sources) {
       const incoming = (src.data[kind] as Named[] | undefined) ?? [];
       for (const raw of incoming) {
-        const entry = { ...raw, source: src.id };
+        const entry = backfillPublication({ ...raw, source: src.id } as NamedTraited) as Named;
         const key = entry.name.toLowerCase();
         const existing = byName.get(key);
 

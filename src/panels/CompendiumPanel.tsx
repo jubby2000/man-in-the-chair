@@ -37,6 +37,7 @@ export function CompendiumPanel({ onClose }: PanelComponentProps) {
   const [kind, setKind] = useState<CompendiumKind>('monsters');
   const [q, setQ] = useState('');
   const [source, setSource] = useState<string>('all');
+  const [pub, setPub] = useState<string>('all');
 
   // Only offer the source filter once there's something to distinguish SRD from.
   const hasImports = imports.length > 0;
@@ -49,16 +50,42 @@ export function CompendiumPanel({ onClose }: PanelComponentProps) {
     [imports],
   );
 
+  // Distinct publication sources present in the current kind, under the active
+  // file-source filter. This is a second, independent axis (a book like "Volo's
+  // Guide" can span multiple import files), surfaced only when some entry has one.
+  const pubOptions = useMemo(() => {
+    const list = compendium[kind] as { source?: string; publication?: string }[];
+    const set = new Set<string>();
+    for (const e of list) {
+      if (e.publication && matchesSource(e.source, source)) set.add(e.publication);
+    }
+    const sorted = [...set].sort((a, b) => a.localeCompare(b));
+    return [
+      { value: 'all', label: 'All books' },
+      ...sorted.map((p) => ({ value: p, label: p })),
+    ];
+  }, [compendium, kind, source]);
+  const hasPublications = pubOptions.length > 1;
+
+  // if the chosen book isn't available in the new kind/source, fall back to all
+  const effectivePub = pubOptions.some((o) => o.value === pub) ? pub : 'all';
+
   const entries = useMemo(() => {
-    const list = compendium[kind] as { id: string; name: string; source?: string }[];
+    const list = compendium[kind] as {
+      id: string;
+      name: string;
+      source?: string;
+      publication?: string;
+    }[];
     const needle = q.trim().toLowerCase();
     const filtered = list.filter(
       (e) =>
         matchesSource(e.source, source) &&
+        (effectivePub === 'all' || e.publication === effectivePub) &&
         (needle ? e.name.toLowerCase().includes(needle) : true),
     );
     return [...filtered].sort((a, b) => a.name.localeCompare(b.name));
-  }, [compendium, kind, q, source]);
+  }, [compendium, kind, q, source, effectivePub]);
 
   // Per-kind counts honor the active source filter so the tab badges stay honest.
   const kindCount = (k: CompendiumKind): number => {
@@ -93,6 +120,8 @@ export function CompendiumPanel({ onClose }: PanelComponentProps) {
   };
 
   const sourceLabel = source === 'all' ? '' : sourceOptions.find((o) => o.value === source)?.label;
+  const pubLabel = effectivePub === 'all' ? '' : effectivePub;
+  const fromClause = [sourceLabel, pubLabel].filter(Boolean).join(' · ');
 
   return (
     <Panel onClose={onClose} title="Compendium" flush>
@@ -108,12 +137,25 @@ export function CompendiumPanel({ onClose }: PanelComponentProps) {
             value={source}
             options={sourceOptions}
             onChange={setSource}
-            title="Filter by source"
+            title="Filter by import source"
             align="right"
             className="source-filter"
           />
         )}
       </div>
+      {hasPublications && (
+        <div className="filter-row">
+          <span className="filter-label">Book</span>
+          <Dropdown
+            value={effectivePub}
+            options={pubOptions}
+            onChange={setPub}
+            title="Filter by publication source"
+            align="left"
+            className="pub-filter"
+          />
+        </div>
+      )}
       <div className="kind-tabs">
         {KINDS.map((k) => (
           <button
@@ -129,7 +171,7 @@ export function CompendiumPanel({ onClose }: PanelComponentProps) {
       {entries.length === 0 ? (
         <div className="empty">
           No {kind}
-          {sourceLabel ? ` from ${sourceLabel}` : ''} match{q ? ` “${q}”` : ''}.
+          {fromClause ? ` from ${fromClause}` : ''} match{q ? ` “${q}”` : ''}.
         </div>
       ) : (
         <ul className="list">

@@ -38,6 +38,39 @@ function namedEntry(node: Record<string, unknown>) {
   return { name: str(node.name), desc: texts.join('\n\n') };
 }
 
+// Normalize a raw publication string to a clean book name for filtering:
+// "Volo's Guide to Monsters, p. 209" -> "Volo's Guide to Monsters".
+// Strips a leading "Source." label and a trailing ", p. N" / " p. N" page ref.
+export function normalizePublication(raw: string): string {
+  return raw
+    .replace(/^\s*source[:.]?\s*/i, '')
+    .replace(/[,;]?\s*p(?:g|p|age)?\.?\s*\d+.*$/i, '')
+    .trim();
+}
+
+// FightClub encodes a monster/spell/item's publication source two ways:
+//  - a top-level <source> element (newer exports), or
+//  - a <trait name="Source"><text>…</text></trait> (common exports; this is
+//    what renders as the "Source. Volo's Guide…" line in the stat block).
+// Return the normalized book name, or '' if none.
+function extractPublication(node: Record<string, any>): string {
+  const direct = str(node.source);
+  if (direct) return normalizePublication(direct);
+  const trait = toArray<Record<string, any>>(node.trait).find(
+    (t) => str(t.name).trim().toLowerCase() === 'source',
+  );
+  if (trait) return normalizePublication(toArray(trait.text).map(str).join(' '));
+  return '';
+}
+
+// Traits minus any "Source" trait (we surface publication as its own field,
+// so keep it out of the generic trait list to avoid a duplicate line).
+function traitsWithoutSource(node: Record<string, any>) {
+  return toArray<Record<string, any>>(node.trait)
+    .filter((t) => str(t.name).trim().toLowerCase() !== 'source')
+    .map(namedEntry);
+}
+
 // FightClub single-letter item type codes -> readable categories.
 const ITEM_TYPE: Record<string, string> = {
   LA: 'Light Armor', MA: 'Medium Armor', HA: 'Heavy Armor', S: 'Shield',
@@ -72,10 +105,11 @@ function parseFightClubMonster(m: Record<string, any>): Monster {
     damageImmunities: str(m.immune),
     damageVulnerabilities: str(m.vulnerable),
     conditionImmunities: str(m.conditionImmune),
-    traits: toArray(m.trait).map(namedEntry),
+    traits: traitsWithoutSource(m),
     actions: toArray(m.action).map(namedEntry),
     reactions: toArray(m.reaction).map(namedEntry),
     legendaryActions: toArray(m.legendary).map(namedEntry),
+    publication: extractPublication(m) || undefined,
   };
 }
 
@@ -104,6 +138,7 @@ function parseFightClubSpell(s: Record<string, any>): Spell {
     ritual: str(s.ritual).toUpperCase() === 'YES',
     desc: toArray(s.text).map(str).join('\n\n'),
     classes: str(s.classes).split(',').map((c) => c.trim()).filter(Boolean),
+    publication: extractPublication(s) || undefined,
   };
 }
 
@@ -123,6 +158,7 @@ function parseFightClubItem(i: Record<string, any>): Item {
     properties: str(i.property) || undefined,
     magic: str(i.magic) === '1' || str(i.magic).toUpperCase() === 'YES',
     desc: toArray(i.text).map(str).join('\n\n'),
+    publication: extractPublication(i) || undefined,
   };
 }
 
@@ -133,8 +169,9 @@ function parseFightClubRace(r: Record<string, any>): Race {
     size: str(r.size),
     speed: str(r.speed),
     ability: str(r.ability),
-    traits: toArray(r.trait).map(namedEntry),
+    traits: traitsWithoutSource(r),
     desc: toArray(r.text).map(str).join('\n\n') || undefined,
+    publication: extractPublication(r) || undefined,
   };
 }
 
@@ -156,6 +193,7 @@ function parseFightClubClass(c: Record<string, any>): CharClass {
     savingThrows: undefined,
     spellcastingAbility: str(c.spellAbility) || undefined,
     features,
+    publication: extractPublication(c) || undefined,
   };
 }
 
@@ -164,7 +202,8 @@ function parseFightClubBackground(b: Record<string, any>): Background {
     id: slug(str(b.name)),
     name: str(b.name),
     proficiencies: str(b.proficiency) || undefined,
-    traits: toArray(b.trait).map(namedEntry),
+    traits: traitsWithoutSource(b),
+    publication: extractPublication(b) || undefined,
   };
 }
 
@@ -174,6 +213,7 @@ function parseFightClubFeat(f: Record<string, any>): Feat {
     name: str(f.name),
     prerequisite: str(f.prerequisite) || undefined,
     desc: toArray(f.text).map(str).join('\n\n'),
+    publication: extractPublication(f) || undefined,
   };
 }
 

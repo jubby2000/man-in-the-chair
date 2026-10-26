@@ -344,6 +344,30 @@ select.select {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.filter-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px 9px;
+  border-bottom: 1px solid var(--border-soft);
+  flex-shrink: 0;
+}
+.filter-label {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  flex: none;
+}
+.pub-filter {
+  flex: 1;
+  min-width: 0;
+}
+.pub-filter .dropdown-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .kind-tabs {
   display: flex;
   gap: 2px;
@@ -448,6 +472,16 @@ select.select {
 }
 .statblock .attr-line b {
   color: var(--accent-2);
+}
+.statblock .pub-footer {
+  font-size: 12px;
+  color: var(--text-dim);
+  font-style: italic;
+  margin-top: 4px;
+}
+.statblock .pub-footer b {
+  color: var(--text-faint);
+  font-style: normal;
 }
 .abilities {
   display: grid;
