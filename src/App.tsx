@@ -18,6 +18,7 @@ import { Toast } from './components/Toast';
 import { QuickRoll } from './components/QuickRoll';
 import { CommandPalette } from './components/CommandPalette';
 import { ConfirmDialog } from './components/ConfirmDialog';
+import { PromptDialog } from './components/PromptDialog';
 import { SettingsMenu } from './components/SettingsMenu';
 import { useThemeStore } from './theme/useThemeStore';
 import { useDiceSetStore } from './theme/diceSets';
@@ -65,6 +66,7 @@ export default function App() {
   const addPreset = useStore((s) => s.addPreset);
   const removePreset = useStore((s) => s.removePreset);
   const confirmDialog = useStore((s) => s.confirm);
+    const promptDialog = useStore((s) => s.prompt);
 
   const [showImport, setShowImport] = useState(false);
   const initTheme = useThemeStore((s) => s.init);
@@ -174,8 +176,13 @@ export default function App() {
             className="btn sm ghost"
             title="New preset from current layout"
             onClick={() => {
-              const name = prompt('New layout preset name:');
-              if (name?.trim()) addPreset(name.trim());
+              void promptDialog({
+                title: 'New layout preset',
+                placeholder: 'Preset name',
+                confirmLabel: 'Create',
+              }).then((name) => {
+                if (name) addPreset(name);
+              });
             }}
           >
             +
@@ -246,6 +253,7 @@ export default function App() {
       <QuickRoll />
       <CommandPalette />
       <ConfirmDialog />
+            <PromptDialog />
     </div>
   );
 }

@@ -13,6 +13,7 @@ export function DiceSetPicker() {
   const removeCustomSet = useDiceSetStore((s) => s.removeCustomSet);
   const renameCustomSet = useDiceSetStore((s) => s.renameCustomSet);
   const showToast = useStore((s) => s.showToast);
+    const promptDialog = useStore((s) => s.prompt);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const current = useDiceSetStore((s) => s.current());
@@ -86,8 +87,14 @@ export function DiceSetPicker() {
             title="Rename this custom set"
             style={{ flexShrink: 0 }}
             onClick={() => {
-              const name = prompt('Rename dice set:', current.name);
-              if (name && name.trim()) renameCustomSet(setId, name);
+              void promptDialog({
+                title: 'Rename dice set',
+                placeholder: 'Dice set name',
+                initial: current.name,
+                confirmLabel: 'Rename',
+              }).then((name) => {
+                if (name) renameCustomSet(setId, name);
+              });
             }}
           >
             ✎

@@ -76,6 +76,24 @@ interface AppState {
   } | null;
   confirm: (opts: { title: string; message: string; confirmLabel?: string; danger?: boolean }) => Promise<boolean>;
   resolveConfirm: (ok: boolean) => void;
+
+  // themed text-input dialog (replaces window.prompt)
+  promptState: {
+    title: string;
+    message?: string;
+    placeholder: string;
+    initial: string;
+    confirmLabel: string;
+    resolve: (value: string | null) => void;
+  } | null;
+  prompt: (opts: {
+    title: string;
+    message?: string;
+    placeholder?: string;
+    initial?: string;
+    confirmLabel?: string;
+  }) => Promise<string | null>;
+  resolvePrompt: (value: string | null) => void;
   /** Append text to the Notes panel's persisted content. */
   appendNotes: (text: string) => Promise<void>;
   /** Bumped whenever notes are changed externally (e.g. generator). */
@@ -180,6 +198,7 @@ export const useStore = create<AppState>((set, get) => ({
   rollLog: [],
   toast: null,
   confirmState: null,
+  promptState: null,
   notesRevision: 0,
   sessionLog: [],
   combatLogged: false,
@@ -259,6 +278,16 @@ export const useStore = create<AppState>((set, get) => ({
     const st = get().confirmState;
     if (st) st.resolve(ok);
     set({ confirmState: null });
+  },
+
+  prompt: ({ title, message, placeholder = '', initial = '', confirmLabel = 'OK' }) =>
+    new Promise<string | null>((resolve) => {
+      set({ promptState: { title, message, placeholder, initial, confirmLabel, resolve } });
+    }),
+  resolvePrompt: (value) => {
+    const st = get().promptState;
+    if (st) st.resolve(value);
+    set({ promptState: null });
   },
 
   appendNotes: async (text) => {
