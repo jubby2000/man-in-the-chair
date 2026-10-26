@@ -121,11 +121,18 @@ export function CompendiumPanel({ onClose }: PanelComponentProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [compendium, kind, q, source, selectedBooks]);
 
-  // Per-kind counts honor the active source filter so the tab badges stay honest.
+  // Per-kind counts honor BOTH the import-source filter and the selected-books
+  // filter, so a tab badge always matches what that tab would actually show.
   const kindCount = (k: CompendiumKind): number => {
-    const list = compendium[k] as { source?: string }[];
-    if (source === 'all') return list.length;
-    return list.reduce((n, e) => (matchesSource(e.source, source) ? n + 1 : n), 0);
+    const list = compendium[k] as { source?: string; publication?: string }[];
+    return list.reduce((n, e) => {
+      if (!matchesSource(e.source, source)) return n;
+      if (selectedBooks.size > 0) {
+        const key = bookKeyOf(e.publication);
+        if (!key || !selectedBooks.has(key)) return n;
+      }
+      return n + 1;
+    }, 0);
   };
 
   // Rendering thousands of rows (Items has ~1800) stalls the panel and makes
