@@ -107,9 +107,10 @@ export function PartyPanel({ onClose }: PanelComponentProps) {
       {editing && (
         <div className="party-card" style={{ borderLeftColor: 'var(--accent)' }}>
           <div className="field">
-            <label>Name</label>
+            <label>Character name</label>
             <input
               className="input"
+              placeholder="the character in the game"
               value={editing.name}
               autoFocus
               onChange={(e) => setEditing({ ...editing, name: e.target.value })}
@@ -117,9 +118,10 @@ export function PartyPanel({ onClose }: PanelComponentProps) {
           </div>
           <div className="row-gap">
             <div className="field" style={{ flex: 2 }}>
-              <label>Player</label>
+              <label>Player name</label>
               <input
                 className="input"
+                placeholder="the person at the table"
                 value={editing.player}
                 onChange={(e) => setEditing({ ...editing, player: e.target.value })}
               />
