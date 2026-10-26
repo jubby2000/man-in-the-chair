@@ -885,11 +885,32 @@ select.select {
 }
 .embed-input {
   display: flex;
+  flex-direction: column;
   gap: 6px;
 }
 .embed-input .input {
   flex: 1;
   min-width: 0;
+}
+.embed-textarea {
+  width: 100%;
+  min-height: 84px;
+  resize: vertical;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  padding: 9px 10px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.embed-textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.embed-input .btn {
+  align-self: flex-start;
 }
 .embed-error {
   color: var(--danger);
