@@ -106,6 +106,13 @@ interface AppState {
   addLogNote: (text: string) => void;
   clearSessionLog: () => Promise<void>;
 
+  // user-defined book-name merges: maps a book name -> the canonical name it
+  // should be grouped under in the Compendium "Book" filter.
+  bookAliases: Record<string, string>;
+  /** Merge/rename a book: every entry grouped under `from` moves to `to`. */
+  setBookAlias: (from: string, to: string) => Promise<void>;
+  clearBookAlias: (from: string) => Promise<void>;
+
   // layout
   presets: LayoutPreset[];
   activePresetId: string;
@@ -202,6 +209,7 @@ export const useStore = create<AppState>((set, get) => ({
   notesRevision: 0,
   sessionLog: [],
   combatLogged: false,
+  bookAliases: {},
   presets: DEFAULT_PRESETS,
   activePresetId: DEFAULT_PRESETS[0].id,
 
@@ -214,11 +222,12 @@ export const useStore = create<AppState>((set, get) => ({
     const imports = await db.imports.toArray();
     const displayName = await getKV<string>('displayName', 'Man in the Chair');
     const sessionLog = await getKV<SessionLogEntry[]>('sessionLog', []);
+    const bookAliases = await getKV<Record<string, string>>('bookAliases', {});
     const compendium = await loadCompendium(edition);
     if (!savedPresets.length) {
       await db.layouts.bulkPut(DEFAULT_PRESETS);
     }
-    set({ ready: true, edition, displayName, compendium, imports, presets, activePresetId, party, sessionLog });
+    set({ ready: true, edition, displayName, compendium, imports, presets, activePresetId, party, sessionLog, bookAliases });
   },
 
   setDisplayName: (name) => {
@@ -310,6 +319,23 @@ export const useStore = create<AppState>((set, get) => ({
   clearSessionLog: async () => {
     await setKV('sessionLog', []);
     set({ sessionLog: [], combatLogged: false });
+  },
+
+  setBookAlias: async (from, to) => {
+    const next = { ...get().bookAliases };
+    const target = to.trim();
+    // mapping a name to itself (or blank) is a no-op / removal
+    if (!target || target === from) delete next[from];
+    else next[from] = target;
+    await setKV('bookAliases', next);
+    set({ bookAliases: next });
+  },
+
+  clearBookAlias: async (from) => {
+    const next = { ...get().bookAliases };
+    delete next[from];
+    await setKV('bookAliases', next);
+    set({ bookAliases: next });
   },
 
   rollDice: (notation) => {

@@ -1748,6 +1748,52 @@ select.select {
 .confirm-modal {
   width: min(400px, 92vw);
 }
+.cleanup-modal {
+  width: min(540px, 94vw);
+}
+.cleanup-list {
+  max-height: 46vh;
+  overflow-y: auto;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+}
+.cleanup-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.cleanup-row:last-child {
+  border-bottom: none;
+}
+.cleanup-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+.cleanup-count {
+  flex: none;
+  min-width: 36px;
+  text-align: right;
+}
+.cleanup-row .input {
+  flex: 1;
+  min-width: 0;
+}
+.cleanup-merges {
+  margin-top: 14px;
+}
+.cleanup-merge-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 0;
+}
 
 /* ---- Party ability inputs & derived saves ---- */
 .ability-inputs {

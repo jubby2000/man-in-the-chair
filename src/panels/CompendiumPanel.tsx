@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Panel } from '../components/Panel';
 import { EncounterAddButton } from '../components/EncounterAddButton';
 import { Dropdown } from '../components/Dropdown';
+import { SourceCleanupDialog } from '../components/SourceCleanupDialog';
 import type { PanelComponentProps } from '../types';
 import { useStore } from '../store/useStore';
 import { publicationBook } from '../lib/import';
@@ -33,12 +34,22 @@ function matchesSource(entrySource: string | undefined, filter: string): boolean
 export function CompendiumPanel({ onClose }: PanelComponentProps) {
   const compendium = useStore((s) => s.compendium);
   const imports = useStore((s) => s.imports);
+  const bookAliases = useStore((s) => s.bookAliases);
   const selectEntry = useStore((s) => s.selectEntry);
   const selectedEntry = useStore((s) => s.selectedEntry);
   const [kind, setKind] = useState<CompendiumKind>('monsters');
   const [q, setQ] = useState('');
   const [source, setSource] = useState<string>('all');
   const [pub, setPub] = useState<string>('all');
+  const [showCleanup, setShowCleanup] = useState(false);
+
+  // The canonical book name for an entry: auto-collapsed, then folded through
+  // any user-defined merges (the Clean up sources tool).
+  const bookOf = (publication?: string): string | undefined => {
+    if (!publication) return undefined;
+    const base = publicationBook(publication);
+    return bookAliases[base] ?? base;
+  };
 
   // Only offer the source filter once there's something to distinguish SRD from.
   const hasImports = imports.length > 0;
@@ -58,14 +69,16 @@ export function CompendiumPanel({ onClose }: PanelComponentProps) {
     const list = compendium[kind] as { source?: string; publication?: string }[];
     const set = new Set<string>();
     for (const e of list) {
-      if (e.publication && matchesSource(e.source, source)) set.add(publicationBook(e.publication));
+      const book = bookOf(e.publication);
+      if (book && matchesSource(e.source, source)) set.add(book);
     }
     const sorted = [...set].sort((a, b) => a.localeCompare(b));
     return [
       { value: 'all', label: 'All books' },
       ...sorted.map((p) => ({ value: p, label: p })),
     ];
-  }, [compendium, kind, source]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [compendium, kind, source, bookAliases]);
   const hasPublications = pubOptions.length > 1;
 
   // if the chosen book isn't available in the new kind/source, fall back to all
@@ -82,7 +95,7 @@ export function CompendiumPanel({ onClose }: PanelComponentProps) {
     const filtered = list.filter(
       (e) =>
         matchesSource(e.source, source) &&
-        (effectivePub === 'all' || (e.publication && publicationBook(e.publication) === effectivePub)) &&
+        (effectivePub === 'all' || bookOf(e.publication) === effectivePub) &&
         (needle ? e.name.toLowerCase().includes(needle) : true),
     );
     return [...filtered].sort((a, b) => a.name.localeCompare(b.name));
@@ -155,8 +168,16 @@ export function CompendiumPanel({ onClose }: PanelComponentProps) {
             align="left"
             className="pub-filter"
           />
+          <button
+            className="btn sm ghost"
+            title="Merge or rename book names"
+            onClick={() => setShowCleanup(true)}
+          >
+            Clean up
+          </button>
         </div>
       )}
+      {showCleanup && <SourceCleanupDialog onClose={() => setShowCleanup(false)} />}
       <div className="kind-tabs">
         {KINDS.map((k) => (
           <button

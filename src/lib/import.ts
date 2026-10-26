@@ -47,6 +47,7 @@ export function canonicalizeText(s: string): string {
     .replace(/[\u201C\u201D\u2033]/g, '"') //  “ ” ″ -> "
     .replace(/[\u2013\u2014\u2212]/g, '-') // – — − -> -
     .replace(/\s+/g, ' ')
+    .replace(/[\s.,;:]+$/, '') // strip trailing punctuation ("Volo's Guide." -> "Volo's Guide")
     .trim();
 }
 
@@ -77,6 +78,12 @@ function extractPublication(node: Record<string, any>): string {
     (t) => str(t.name).trim().toLowerCase() === 'source',
   );
   if (trait) return toArray(trait.text).map(str).join(' ').trim();
+  // Spells/items/feats often have no <source> or Source trait; instead a text
+  // line reads "Source: Xanathar's Guide to Everything p. 152". Pull that.
+  for (const t of toArray(node.text).map(str)) {
+    const m = t.match(/^\s*source\s*[:.]\s*(.+)$/i);
+    if (m) return m[1].trim();
+  }
   return '';
 }
 

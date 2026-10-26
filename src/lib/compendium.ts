@@ -26,21 +26,33 @@ type NamedTraited = {
   name: string;
   source?: string;
   publication?: string;
+  desc?: string;
   traits?: { name: string; desc: string }[];
 };
 
 // Normalize an entry's publication at load time. We keep the FULL citation
 // (page number and any secondary book) for display in the stat block; the
 // Compendium filter collapses it to a book name for grouping separately.
-// This only lifts a "Source" trait into the publication field (so it stops
-// double-rendering) when the field isn't already set. Idempotent.
+// Backfills publication for data imported before extraction existed, from a
+// "Source" trait (monsters/races/etc.) or a "Source:" line in desc (spells/
+// items/feats). Only runs when publication isn't already set. Idempotent.
 function normalizeEntry<T extends NamedTraited>(entry: T): T {
-  if (entry.publication || !Array.isArray(entry.traits)) return entry;
-  const idx = entry.traits.findIndex((t) => t.name?.trim().toLowerCase() === 'source');
-  if (idx === -1) return entry;
-  const raw = (entry.traits[idx].desc ?? '').trim();
-  const traits = entry.traits.filter((_, i) => i !== idx);
-  return { ...entry, publication: raw || undefined, traits };
+  if (entry.publication) return entry;
+  // 1. a "Source" trait → lift it out and drop the trait (stops double-render)
+  if (Array.isArray(entry.traits)) {
+    const idx = entry.traits.findIndex((t) => t.name?.trim().toLowerCase() === 'source');
+    if (idx !== -1) {
+      const raw = (entry.traits[idx].desc ?? '').trim();
+      const traits = entry.traits.filter((_, i) => i !== idx);
+      return { ...entry, publication: raw || undefined, traits };
+    }
+  }
+  // 2. a "Source:" line embedded in the description text
+  if (typeof entry.desc === 'string') {
+    const m = entry.desc.match(/^\s*source\s*[:.]\s*(.+)$/im);
+    if (m) return { ...entry, publication: m[1].trim() };
+  }
+  return entry;
 }
 
 // Lazily load bundled edition data so the initial bundle stays small. Only the
