@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Panel } from '../components/Panel';
+import { Popover } from '../components/Popover';
 import type { PanelComponentProps } from '../types';
 import { useStore } from '../store/useStore';
 
@@ -21,6 +22,7 @@ export function InitiativePanel({ onClose }: PanelComponentProps) {
   const addCombatant = useStore((s) => s.addCombatant);
   const selectMonster = useStore((s) => s.selectMonster);
   const [condFor, setCondFor] = useState<string | null>(null);
+  const condBtnRef = useRef<HTMLButtonElement>(null);
 
   const addBlank = () =>
     addCombatant({
@@ -133,6 +135,7 @@ export function InitiativePanel({ onClose }: PanelComponentProps) {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' }}>
                 <button
+                  ref={condFor === c.id ? condBtnRef : undefined}
                   className="btn sm"
                   onClick={() => setCondFor(condFor === c.id ? null : c.id)}
                 >
@@ -142,23 +145,30 @@ export function InitiativePanel({ onClose }: PanelComponentProps) {
                   ✕
                 </button>
                 {condFor === c.id && (
-                  <div className="cond-popover" onMouseLeave={() => setCondFor(null)}>
-                    {CONDITIONS.filter((cond) => !c.conditions.includes(cond)).map((cond) => (
-                      <button
-                        key={cond}
-                        className="cond-opt"
-                        onClick={() => {
-                          updateCombatant(c.id, { conditions: [...c.conditions, cond] });
-                          setCondFor(null);
-                        }}
-                      >
-                        {cond}
-                      </button>
-                    ))}
-                    {CONDITIONS.every((cond) => c.conditions.includes(cond)) && (
-                      <div className="cond-opt-empty">All applied</div>
-                    )}
-                  </div>
+                  <Popover
+                    anchorRef={condBtnRef}
+                    open
+                    onClose={() => setCondFor(null)}
+                    align="right"
+                  >
+                    <div className="cond-popover">
+                      {CONDITIONS.filter((cond) => !c.conditions.includes(cond)).map((cond) => (
+                        <button
+                          key={cond}
+                          className="cond-opt"
+                          onClick={() => {
+                            updateCombatant(c.id, { conditions: [...c.conditions, cond] });
+                            setCondFor(null);
+                          }}
+                        >
+                          {cond}
+                        </button>
+                      ))}
+                      {CONDITIONS.every((cond) => c.conditions.includes(cond)) && (
+                        <div className="cond-opt-empty">All applied</div>
+                      )}
+                    </div>
+                  </Popover>
                 )}
               </div>
             </div>

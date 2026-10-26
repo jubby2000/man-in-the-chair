@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
+import { Popover } from './Popover';
 
 export interface DropdownOption<T extends string> {
   value: T;
@@ -20,7 +21,8 @@ interface DropdownProps<T extends string> {
 }
 
 /** A styled select replacement: a button trigger + floating option list that
- *  matches the app's popover style (unlike a native <select>'s OS-drawn list). */
+ *  matches the app's popover style. The list is portaled to <body> so it is
+ *  never clipped by a panel's overflow or the grid's transform. */
 export function Dropdown<T extends string>({
   value,
   options,
@@ -31,28 +33,15 @@ export function Dropdown<T extends string>({
   align = 'left',
 }: DropdownProps<T>) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const onDoc = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
-    document.addEventListener('mousedown', onDoc);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onDoc);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [open]);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   const selected = options.find((o) => o.value === value);
   let lastGroup: string | undefined;
 
   return (
-    <div className={`dropdown ${className ?? ''}`} ref={ref} data-open={open}>
+    <div className={`dropdown ${className ?? ''}`} data-open={open}>
       <button
+        ref={triggerRef}
         type="button"
         className="dropdown-trigger"
         title={title}
@@ -76,8 +65,8 @@ export function Dropdown<T extends string>({
           <polyline points="6 9 12 15 18 9" />
         </svg>
       </button>
-      {open && (
-        <div className={`dropdown-menu ${align === 'right' ? 'align-right' : ''}`} role="listbox">
+      <Popover anchorRef={triggerRef} open={open} onClose={() => setOpen(false)} align={align}>
+        <div className="dropdown-menu" role="listbox">
           {options.map((o) => {
             const heading = o.group && o.group !== lastGroup ? o.group : null;
             lastGroup = o.group;
@@ -100,7 +89,7 @@ export function Dropdown<T extends string>({
             );
           })}
         </div>
-      )}
+      </Popover>
     </div>
   );
 }

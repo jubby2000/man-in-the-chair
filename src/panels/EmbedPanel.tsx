@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Panel } from '../components/Panel';
+import { Popover } from '../components/Popover';
 import type { PanelComponentProps } from '../types';
 import { getKV, setKV } from '../lib/db';
 
@@ -49,6 +50,8 @@ export function EmbedPanel({ onClose }: PanelComponentProps) {
   const [url, setUrl] = useState('');
   const [draft, setDraft] = useState('');
   const [loaded, setLoaded] = useState(false);
+  const [tipOpen, setTipOpen] = useState(false);
+  const infoRef = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
     getKV<string>('embedUrl', '').then((v) => {
@@ -99,20 +102,31 @@ export function EmbedPanel({ onClose }: PanelComponentProps) {
             <code>&lt;iframe&gt;</code> snippet from a site's “Share → Embed”) — a music playlist
             (Spotify, YouTube), a battle map (Owlbear Rodeo), or any page that allows embedding. It
             runs isolated in its own frame.
-            <span className="embed-info" tabIndex={0} aria-label="Embedding tips">
+            <span
+              className="embed-info"
+              ref={infoRef}
+              tabIndex={0}
+              aria-label="Embedding tips"
+              onMouseEnter={() => setTipOpen(true)}
+              onMouseLeave={() => setTipOpen(false)}
+              onFocus={() => setTipOpen(true)}
+              onBlur={() => setTipOpen(false)}
+            >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                 strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <circle cx="12" cy="12" r="10" />
                 <line x1="12" y1="16" x2="12" y2="12" />
                 <line x1="12" y1="8" x2="12.01" y2="8" />
               </svg>
-              <span className="embed-tooltip" role="tooltip">
-                <strong>If the frame is blank or errors:</strong>
-                <br />• Some sites block embedding (X-Frame-Options) — nothing we can change.
-                <br />• <strong>YouTube Music</strong>-only tracks (auto-generated “art tracks,”
-                radio/mixes) often can't be embedded — a YouTube restriction. Use a regular YouTube
-                video/playlist, or Spotify, for reliable playback.
-              </span>
+              <Popover anchorRef={infoRef} open={tipOpen} onClose={() => setTipOpen(false)} align="left">
+                <span className="embed-tooltip" role="tooltip">
+                  <strong>If the frame is blank or errors:</strong>
+                  <br />• Some sites block embedding (X-Frame-Options) — nothing we can change.
+                  <br />• <strong>YouTube Music</strong>-only tracks (auto-generated “art tracks,”
+                  radio/mixes) often can't be embedded — a YouTube restriction. Use a regular YouTube
+                  video/playlist, or Spotify, for reliable playback.
+                </span>
+              </Popover>
             </span>
           </p>
           <div className="embed-input">

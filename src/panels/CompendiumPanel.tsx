@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Panel } from '../components/Panel';
 import { EncounterAddButton } from '../components/EncounterAddButton';
 import { Dropdown } from '../components/Dropdown';
+import { Popover } from '../components/Popover';
 import { SourceCleanupDialog } from '../components/SourceCleanupDialog';
 import type { PanelComponentProps } from '../types';
 import { useStore } from '../store/useStore';
@@ -42,6 +43,7 @@ export function CompendiumPanel({ onClose }: PanelComponentProps) {
   const [source, setSource] = useState<string>('all');
   const [selectedBooks, setSelectedBooks] = useState<Set<string>>(new Set()); // book keys; empty = all
   const [booksOpen, setBooksOpen] = useState(false);
+  const booksTriggerRef = useRef<HTMLButtonElement>(null);
   const [showCleanup, setShowCleanup] = useState(false);
 
   // Resolve an entry's book to a { key, label }. The raw citation is collapsed
@@ -195,6 +197,7 @@ export function CompendiumPanel({ onClose }: PanelComponentProps) {
           <span className="filter-label">Books</span>
           <div className="book-filter">
             <button
+              ref={booksTriggerRef}
               className={`btn sm book-trigger ${booksOpen ? 'primary' : ''}`}
               onClick={() => setBooksOpen((o) => !o)}
               title="Filter by one or more source books"
@@ -220,18 +223,25 @@ export function CompendiumPanel({ onClose }: PanelComponentProps) {
               </button>
             )}
             {booksOpen && (
-              <div className="book-popover" onMouseLeave={() => setBooksOpen(false)}>
-                {allBooks.map((b) => (
-                  <button
-                    key={b.key}
-                    className={`book-opt ${selectedBooks.has(b.key) ? 'on' : ''}`}
-                    onClick={() => toggleBook(b.key)}
-                  >
-                    <span className="book-check">{selectedBooks.has(b.key) ? '✓' : ''}</span>
-                    {b.label}
-                  </button>
-                ))}
-              </div>
+              <Popover
+                anchorRef={booksTriggerRef}
+                open={booksOpen}
+                onClose={() => setBooksOpen(false)}
+                align="left"
+              >
+                <div className="book-popover">
+                  {allBooks.map((b) => (
+                    <button
+                      key={b.key}
+                      className={`book-opt ${selectedBooks.has(b.key) ? 'on' : ''}`}
+                      onClick={() => toggleBook(b.key)}
+                    >
+                      <span className="book-check">{selectedBooks.has(b.key) ? '✓' : ''}</span>
+                      {b.label}
+                    </button>
+                  ))}
+                </div>
+              </Popover>
             )}
           </div>
           <button

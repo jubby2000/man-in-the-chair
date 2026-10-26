@@ -399,10 +399,6 @@ select.select {
   color: var(--accent-ink);
 }
 .book-popover {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  z-index: 50;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -936,10 +932,7 @@ select.select {
   color: var(--accent-2);
 }
 .embed-tooltip {
-  position: absolute;
-  bottom: calc(100% + 8px);
-  left: 0;
-  z-index: 60;
+  display: block;
   width: 260px;
   background: var(--bg-elev-2);
   color: var(--text-dim);
@@ -949,20 +942,9 @@ select.select {
   padding: 9px 11px;
   font-size: 11.5px;
   line-height: 1.5;
-  opacity: 0;
-  visibility: hidden;
-  transform: translateY(3px);
-  transition: opacity 0.12s ease, transform 0.12s ease, visibility 0.12s;
-  pointer-events: none;
 }
 .embed-tooltip strong {
   color: var(--text);
-}
-.embed-info:hover .embed-tooltip,
-.embed-info:focus-visible .embed-tooltip {
-  opacity: 1;
-  visibility: visible;
-  transform: translateY(0);
 }
 
 /* ---- Random tables ---- */
@@ -1904,10 +1886,6 @@ select.select {
 
 /* ---- Condition popover (initiative) ---- */
 .cond-popover {
-  position: absolute;
-  top: 0;
-  right: calc(100% + 6px);
-  z-index: 50;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -1984,14 +1962,13 @@ select.select {
   transform: rotate(180deg);
   color: var(--accent);
 }
+.popover-layer {
+  z-index: 1000;
+}
 .dropdown-menu {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  z-index: 200;
-  min-width: 100%;
-  max-width: 280px;
-  max-height: 260px;
+  min-width: 160px;
+  max-width: 320px;
+  max-height: 300px;
   overflow-y: auto;
   background: var(--panel);
   border: 1px solid var(--border);
@@ -2043,10 +2020,6 @@ select.select {
   display: inline-flex;
 }
 .enc-add-popover {
-  position: absolute;
-  top: calc(100% + 4px);
-  right: 0;
-  z-index: 60;
   min-width: 160px;
   background: var(--panel);
   border: 1px solid var(--border);
