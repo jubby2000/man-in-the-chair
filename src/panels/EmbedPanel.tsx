@@ -99,6 +99,21 @@ export function EmbedPanel({ onClose }: PanelComponentProps) {
             <code>&lt;iframe&gt;</code> snippet from a site's “Share → Embed”) — a music playlist
             (Spotify, YouTube), a battle map (Owlbear Rodeo), or any page that allows embedding. It
             runs isolated in its own frame.
+            <span className="embed-info" tabIndex={0} aria-label="Embedding tips">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="16" x2="12" y2="12" />
+                <line x1="12" y1="8" x2="12.01" y2="8" />
+              </svg>
+              <span className="embed-tooltip" role="tooltip">
+                <strong>If the frame is blank or errors:</strong>
+                <br />• Some sites block embedding (X-Frame-Options) — nothing we can change.
+                <br />• <strong>YouTube Music</strong>-only tracks (auto-generated “art tracks,”
+                radio/mixes) often can't be embedded — a YouTube restriction. Use a regular YouTube
+                video/playlist, or Spotify, for reliable playback.
+              </span>
+            </span>
           </p>
           <div className="embed-input">
             <textarea
@@ -115,10 +130,6 @@ export function EmbedPanel({ onClose }: PanelComponentProps) {
             </button>
           </div>
           {invalid && <div className="embed-error">Enter a valid http(s) URL or embed snippet.</div>}
-          <p className="embed-note">
-            Note: some sites refuse to be embedded (they set X-Frame-Options). If the frame stays
-            blank, that site doesn't allow embedding.
-          </p>
         </div>
       )}
     </Panel>
