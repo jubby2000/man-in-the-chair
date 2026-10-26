@@ -3,6 +3,24 @@ import { Panel } from '../components/Panel';
 import type { PanelComponentProps } from '../types';
 import { getKV, setKV } from '../lib/db';
 
+// Repair common malformed YouTube embed URLs. A playlist embed must be
+// /embed/videoseries?list=<ID>; share dialogs (and hand-edits) often produce
+// /embed/playlist&list=<ID> or similar, which YouTube rejects. Leave non-YT
+// and already-correct URLs untouched.
+function normalizeEmbed(u: URL): URL {
+  const host = u.hostname.replace(/^www\./, '');
+  if (host !== 'youtube.com' && host !== 'youtube-nocookie.com') return u;
+  if (!/\/embed\//.test(u.pathname)) return u;
+  // find a playlist id from the query or anywhere in the raw path+search
+  const fromQuery = u.searchParams.get('list');
+  const fromRaw = `${u.pathname}${u.search}`.match(/list=([A-Za-z0-9_-]+)/);
+  const list = fromQuery || (fromRaw && fromRaw[1]);
+  if (list && !/\/embed\/videoseries$/.test(u.pathname.replace(/\/$/, ''))) {
+    return new URL(`https://www.youtube.com/embed/videoseries?list=${list}`);
+  }
+  return u;
+}
+
 // Accept either a raw http(s) URL or a full embed <iframe …> snippet (what
 // YouTube/Spotify/etc. hand you from their Share → Embed button). Returns the
 // validated http(s) src, or null if neither yields a safe URL.
@@ -20,7 +38,8 @@ function resolveEmbedSrc(input: string): string | null {
 
   try {
     const u = new URL(candidate);
-    return u.protocol === 'http:' || u.protocol === 'https:' ? u.toString() : null;
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+    return normalizeEmbed(u).toString();
   } catch {
     return null;
   }
