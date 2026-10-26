@@ -12,6 +12,7 @@ import type {
   Monster,
   PanelType,
   PartyMember,
+  RandomTable,
   SessionLogEntry,
 } from '../types';
 import { loadCompendium, existingNames } from '../lib/compendium';
@@ -113,6 +114,11 @@ interface AppState {
   setBookAlias: (from: string, to: string) => Promise<void>;
   clearBookAlias: (from: string) => Promise<void>;
 
+  // user-created random tables (built-in SRD tables live in data/tables.ts)
+  customTables: RandomTable[];
+  addCustomTable: (t: RandomTable) => Promise<void>;
+  removeCustomTable: (id: string) => Promise<void>;
+
   // layout
   presets: LayoutPreset[];
   activePresetId: string;
@@ -210,6 +216,7 @@ export const useStore = create<AppState>((set, get) => ({
   sessionLog: [],
   combatLogged: false,
   bookAliases: {},
+  customTables: [],
   presets: DEFAULT_PRESETS,
   activePresetId: DEFAULT_PRESETS[0].id,
 
@@ -223,11 +230,12 @@ export const useStore = create<AppState>((set, get) => ({
     const displayName = await getKV<string>('displayName', 'Man in the Chair');
     const sessionLog = await getKV<SessionLogEntry[]>('sessionLog', []);
     const bookAliases = await getKV<Record<string, string>>('bookAliases', {});
+    const customTables = await getKV<RandomTable[]>('customTables', []);
     const compendium = await loadCompendium(edition);
     if (!savedPresets.length) {
       await db.layouts.bulkPut(DEFAULT_PRESETS);
     }
-    set({ ready: true, edition, displayName, compendium, imports, presets, activePresetId, party, sessionLog, bookAliases });
+    set({ ready: true, edition, displayName, compendium, imports, presets, activePresetId, party, sessionLog, bookAliases, customTables });
   },
 
   setDisplayName: (name) => {
@@ -338,6 +346,18 @@ export const useStore = create<AppState>((set, get) => ({
     delete next[from];
     await setKV('bookAliases', next);
     set({ bookAliases: next });
+  },
+
+  addCustomTable: async (t) => {
+    const next = [...get().customTables.filter((x) => x.id !== t.id), t];
+    await setKV('customTables', next);
+    set({ customTables: next });
+  },
+
+  removeCustomTable: async (id) => {
+    const next = get().customTables.filter((x) => x.id !== id);
+    await setKV('customTables', next);
+    set({ customTables: next });
   },
 
   rollDice: (notation) => {

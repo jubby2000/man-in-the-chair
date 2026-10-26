@@ -237,6 +237,25 @@ export interface PartyMember {
   notes?: string;
 }
 
+// ---- Random tables ----
+
+export interface RandomTableRow {
+  /** inclusive low/high of the die range this row covers (e.g. 1..10) */
+  min: number;
+  max: number;
+  text: string;
+}
+
+export interface RandomTable {
+  id: string;
+  name: string;
+  /** die size, e.g. 100 for a d100 table; derived from the row ranges */
+  die: number;
+  rows: RandomTableRow[];
+  /** 'srd' for bundled tables, 'custom' for user-created */
+  source: 'srd' | 'custom';
+}
+
 // ---- Session log ----
 
 /** A timestamped beat in the running session log (auto + manual). */
@@ -261,7 +280,10 @@ export type PanelType =
   | 'encounter'
   | 'rules'
   | 'party'
-  | 'generators';
+  | 'generators'
+  | 'timer'
+  | 'embed'
+  | 'tables';
 
 export interface GridItem {
   i: string;

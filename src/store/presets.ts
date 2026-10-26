@@ -53,4 +53,7 @@ export const PANEL_TITLES: Record<string, string> = {
   rules: 'Rules Reference',
   party: 'Party',
   generators: 'Generators',
+  timer: 'Timer',
+  embed: 'Embed',
+  tables: 'Tables',
 };
