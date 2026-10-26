@@ -12,6 +12,7 @@ import type {
   Monster,
   PanelType,
   PartyMember,
+  SessionLogEntry,
 } from '../types';
 import { loadCompendium, existingNames } from '../lib/compendium';
 import { buildImportedSource, countDuplicates } from '../lib/import';
@@ -24,6 +25,12 @@ const EMPTY: Compendium = {
   races: [], classes: [], backgrounds: [], feats: [],
 };
 const uid = () => Math.random().toString(36).slice(2, 10);
+
+const logEntry = (
+  text: string,
+  kind: SessionLogEntry['kind'],
+  event?: SessionLogEntry['event'],
+): SessionLogEntry => ({ id: uid(), at: Date.now(), kind, event, text });
 
 interface AppState {
   ready: boolean;
@@ -73,6 +80,13 @@ interface AppState {
   appendNotes: (text: string) => Promise<void>;
   /** Bumped whenever notes are changed externally (e.g. generator). */
   notesRevision: number;
+
+  // session log — auto-logged combat beats + manual notes, feeding a recap export
+  sessionLog: SessionLogEntry[];
+  /** whether a combat-start beat has already been logged for the current fight */
+  combatLogged: boolean;
+  addLogNote: (text: string) => void;
+  clearSessionLog: () => Promise<void>;
 
   // layout
   presets: LayoutPreset[];
@@ -167,6 +181,8 @@ export const useStore = create<AppState>((set, get) => ({
   toast: null,
   confirmState: null,
   notesRevision: 0,
+  sessionLog: [],
+  combatLogged: false,
   presets: DEFAULT_PRESETS,
   activePresetId: DEFAULT_PRESETS[0].id,
 
@@ -178,11 +194,12 @@ export const useStore = create<AppState>((set, get) => ({
     const party = await db.party.toArray();
     const imports = await db.imports.toArray();
     const displayName = await getKV<string>('displayName', 'Man in the Chair');
+    const sessionLog = await getKV<SessionLogEntry[]>('sessionLog', []);
     const compendium = await loadCompendium(edition);
     if (!savedPresets.length) {
       await db.layouts.bulkPut(DEFAULT_PRESETS);
     }
-    set({ ready: true, edition, displayName, compendium, imports, presets, activePresetId, party });
+    set({ ready: true, edition, displayName, compendium, imports, presets, activePresetId, party, sessionLog });
   },
 
   setDisplayName: (name) => {
@@ -251,6 +268,21 @@ export const useStore = create<AppState>((set, get) => ({
     set((s) => ({ toast: { id: Date.now(), message: 'Added to Notes' }, notesRevision: s.notesRevision + 1 }));
   },
 
+  addLogNote: (text) => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    set((s) => {
+      const sessionLog = [...s.sessionLog, logEntry(trimmed, 'note')];
+      void setKV('sessionLog', sessionLog);
+      return { sessionLog };
+    });
+  },
+
+  clearSessionLog: async () => {
+    await setKV('sessionLog', []);
+    set({ sessionLog: [], combatLogged: false });
+  },
+
   rollDice: (notation) => {
     const n = countPhysicalDice(notation);
     if (n !== null && n > MAX_DICE) {
@@ -290,9 +322,22 @@ export const useStore = create<AppState>((set, get) => ({
     })),
 
   updateCombatant: (id, patch) =>
-    set((s) => ({
-      combatants: s.combatants.map((c) => (c.id === id ? { ...c, ...patch } : c)),
-    })),
+    set((s) => {
+      const combatants = s.combatants.map((c) => (c.id === id ? { ...c, ...patch } : c));
+      // Log a drop when a combatant's HP crosses from >0 to <=0 during tracked combat.
+      let logPatch: Partial<AppState> = {};
+      if (s.combatLogged && patch.currentHp !== undefined) {
+        const before = s.combatants.find((c) => c.id === id);
+        const after = combatants.find((c) => c.id === id);
+        if (before && after && before.currentHp > 0 && after.currentHp <= 0) {
+          const verb = after.isPC ? 'goes down' : 'is defeated';
+          const sessionLog = [...s.sessionLog, logEntry(`${after.name} ${verb}`, 'auto', 'drop')];
+          void setKV('sessionLog', sessionLog);
+          logPatch = { sessionLog };
+        }
+      }
+      return { combatants, ...logPatch };
+    }),
 
   removeCombatant: (id) =>
     set((s) => ({ combatants: s.combatants.filter((c) => c.id !== id) })),
@@ -300,7 +345,18 @@ export const useStore = create<AppState>((set, get) => ({
   sortInitiative: () =>
     set((s) => {
       const combatants = [...s.combatants].sort((a, b) => b.initiative - a.initiative);
-      return { combatants, activeTurn: 0, ...selectionForTurn(combatants, 0) };
+      const base = { combatants, activeTurn: 0, ...selectionForTurn(combatants, 0) };
+      // Log the start of combat the first time initiative is rolled for a fight.
+      if (!s.combatLogged && combatants.length > 0) {
+        const names = combatants.map((c) => c.name).join(', ');
+        const sessionLog = [
+          ...s.sessionLog,
+          logEntry(`Combat started — ${names}`, 'auto', 'combat-start'),
+        ];
+        void setKV('sessionLog', sessionLog);
+        return { ...base, sessionLog, combatLogged: true, round: 1 };
+      }
+      return base;
     }),
 
   nextTurn: () =>
@@ -308,14 +364,32 @@ export const useStore = create<AppState>((set, get) => ({
       if (s.combatants.length === 0) return s;
       let next = s.activeTurn + 1;
       let round = s.round;
+      let logPatch: Partial<AppState> = {};
       if (next >= s.combatants.length) {
         next = 0;
         round = s.round + 1;
+        // only log round advances while combat is being tracked
+        if (s.combatLogged) {
+          const sessionLog = [...s.sessionLog, logEntry(`Round ${round} begins`, 'auto', 'round')];
+          void setKV('sessionLog', sessionLog);
+          logPatch = { sessionLog };
+        }
       }
-      return { activeTurn: next, round, ...selectionForTurn(s.combatants, next) };
+      return { activeTurn: next, round, ...selectionForTurn(s.combatants, next), ...logPatch };
     }),
 
-  resetCombat: () => set({ combatants: [], activeTurn: 0, round: 1 }),
+  resetCombat: () =>
+    set((s) => {
+      const base = { combatants: [], activeTurn: 0, round: 1, combatLogged: false };
+      if (s.combatLogged) {
+        const survivors = s.combatants.filter((c) => c.currentHp > 0).map((c) => c.name);
+        const detail = survivors.length ? ` — standing: ${survivors.join(', ')}` : '';
+        const sessionLog = [...s.sessionLog, logEntry(`Combat ended${detail}`, 'auto', 'combat-end')];
+        void setKV('sessionLog', sessionLog);
+        return { ...base, sessionLog };
+      }
+      return base;
+    }),
 
   addToEncounter: (m, encounterId) => {
     get().ensurePanel('encounter'); // make sure the panel is visible
