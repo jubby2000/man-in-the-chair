@@ -43,14 +43,17 @@ export function CompendiumPanel({ onClose }: PanelComponentProps) {
   const [pub, setPub] = useState<string>('all');
   const [showCleanup, setShowCleanup] = useState(false);
 
-  // The canonical grouping KEY for an entry's book: auto-collapse the citation
-  // to a book name, lowercase it (so "Into"/"into" group together), then fold
-  // through any user-defined merge (the Clean up sources tool).
-  const bookKeyOf = (publication?: string): string | undefined => {
+  // Resolve an entry's book to a { key, label }. The raw citation is collapsed
+  // to a book name; if the DM renamed that book (Clean up sources), the alias's
+  // display name is used instead — which both re-labels it AND re-keys it (so a
+  // rename to an existing book's name merges the two).
+  const resolveBook = (publication?: string): { key: string; label: string } | undefined => {
     if (!publication) return undefined;
-    const base = bookKey(publicationBook(publication));
-    return bookAliases[base] ?? base;
+    const raw = publicationBook(publication);
+    const label = bookAliases[bookKey(raw)] ?? raw;
+    return { key: bookKey(label), label };
   };
+  const bookKeyOf = (publication?: string) => resolveBook(publication)?.key;
 
   // Only offer the source filter once there's something to distinguish SRD from.
   const hasImports = imports.length > 0;
@@ -64,15 +67,14 @@ export function CompendiumPanel({ onClose }: PanelComponentProps) {
   );
 
   // Distinct books present in the current kind, under the active file-source
-  // filter. Grouped by case-insensitive key; the label is a representative
-  // display name (first-seen original casing for that key).
+  // filter. Grouped by case-insensitive key; label is the resolved display name.
   const pubOptions = useMemo(() => {
     const list = compendium[kind] as { source?: string; publication?: string }[];
     const label = new Map<string, string>();
     for (const e of list) {
-      const key = bookKeyOf(e.publication);
-      if (!key || !matchesSource(e.source, source)) continue;
-      if (!label.has(key)) label.set(key, publicationBook(e.publication!));
+      const resolved = resolveBook(e.publication);
+      if (!resolved || !matchesSource(e.source, source)) continue;
+      if (!label.has(resolved.key)) label.set(resolved.key, resolved.label);
     }
     const sorted = [...label.entries()].sort((a, b) => a[1].localeCompare(b[1]));
     return [

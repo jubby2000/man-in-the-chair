@@ -324,8 +324,10 @@ export const useStore = create<AppState>((set, get) => ({
   setBookAlias: async (from, to) => {
     const next = { ...get().bookAliases };
     const target = to.trim();
-    // mapping a name to itself (or blank) is a no-op / removal
-    if (!target || target === from) delete next[from];
+    // `from` is a normalized base key; `to` is the typed display name. Drop the
+    // alias when the name is blank or normalizes back to the same key (no real
+    // change), so we don't store a redundant identity mapping.
+    if (!target || target.toLowerCase() === from) delete next[from];
     else next[from] = target;
     await setKV('bookAliases', next);
     set({ bookAliases: next });
