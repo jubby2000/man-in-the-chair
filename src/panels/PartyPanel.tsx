@@ -66,6 +66,7 @@ export function PartyPanel({ onClose }: PanelComponentProps) {
       tempHp: 0,
       conditions: [],
       isPC: true,
+      partyId: m.id,
     });
     showToast(`${m.name} added to the Initiative tracker`);
   };

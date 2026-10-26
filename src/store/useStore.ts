@@ -422,7 +422,17 @@ export const useStore = create<AppState>((set, get) => ({
     if (!member) return;
     const updated = { ...member, ...patch };
     await db.party.put(updated);
-    set((s) => ({ party: s.party.map((m) => (m.id === id ? updated : m)) }));
+    set((s) => ({
+      party: s.party.map((m) => (m.id === id ? updated : m)),
+      // keep any linked combatant in sync: AC/name follow directly; maxHp shifts
+      // currentHp by its delta so mid-fight damage is preserved, never clobbered.
+      combatants: s.combatants.map((c) => {
+        if (c.partyId !== id) return c;
+        const maxDelta = updated.maxHp - c.maxHp;
+        const currentHp = Math.max(0, Math.min(c.currentHp + maxDelta, updated.maxHp));
+        return { ...c, name: updated.name, ac: updated.ac, maxHp: updated.maxHp, currentHp };
+      }),
+    }));
   },
 
   removePartyMember: async (id) => {

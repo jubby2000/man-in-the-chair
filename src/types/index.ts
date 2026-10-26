@@ -182,6 +182,8 @@ export interface Combatant {
   conditions: string[];
   isPC: boolean;
   monsterId?: string;
+  /** links this combatant to a PartyMember so stat edits propagate */
+  partyId?: string;
   notes?: string;
 }
 
