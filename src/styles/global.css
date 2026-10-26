@@ -368,6 +368,80 @@ select.select {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* ---- Book multi-select filter (condition-chip style) ---- */
+.book-filter-row {
+  flex-wrap: wrap;
+}
+.book-filter {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  flex: 1;
+  min-width: 0;
+}
+.book-trigger {
+  flex: none;
+}
+.book-chip {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+  color: var(--accent-2);
+  border: 1px solid var(--accent);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.book-chip:hover {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.book-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  padding: 6px;
+  min-width: 220px;
+  max-width: 320px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+.book-opt {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-size: 12.5px;
+  padding: 6px 9px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+.book-opt:hover {
+  background: var(--accent-soft);
+  color: var(--accent-2);
+}
+.book-opt.on {
+  color: var(--accent-2);
+}
+.book-check {
+  display: inline-block;
+  width: 12px;
+  flex: none;
+  color: var(--accent-2);
+}
 .kind-tabs {
   display: flex;
   gap: 2px;

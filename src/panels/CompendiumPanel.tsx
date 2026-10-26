@@ -40,7 +40,8 @@ export function CompendiumPanel({ onClose }: PanelComponentProps) {
   const [kind, setKind] = useState<CompendiumKind>('monsters');
   const [q, setQ] = useState('');
   const [source, setSource] = useState<string>('all');
-  const [pub, setPub] = useState<string>('all');
+  const [selectedBooks, setSelectedBooks] = useState<Set<string>>(new Set()); // book keys; empty = all
+  const [booksOpen, setBooksOpen] = useState(false);
   const [showCleanup, setShowCleanup] = useState(false);
 
   // Resolve an entry's book to a { key, label }. The raw citation is collapsed
@@ -66,27 +67,38 @@ export function CompendiumPanel({ onClose }: PanelComponentProps) {
     [imports],
   );
 
-  // Distinct books present in the current kind, under the active file-source
-  // filter. Grouped by case-insensitive key; label is the resolved display name.
-  const pubOptions = useMemo(() => {
-    const list = compendium[kind] as { source?: string; publication?: string }[];
+  // All distinct books across the WHOLE compendium (so the selection is stable
+  // as you switch tabs), under the active file-source filter. Each is { key,
+  // label }. A book with no entries in the current kind still lists here; the
+  // current tab just shows its empty-state for the selection.
+  const allBooks = useMemo(() => {
     const label = new Map<string, string>();
-    for (const e of list) {
-      const resolved = resolveBook(e.publication);
-      if (!resolved || !matchesSource(e.source, source)) continue;
-      if (!label.has(resolved.key)) label.set(resolved.key, resolved.label);
+    for (const { key: k } of KINDS) {
+      for (const e of compendium[k] as { source?: string; publication?: string }[]) {
+        const resolved = resolveBook(e.publication);
+        if (!resolved || !matchesSource(e.source, source)) continue;
+        if (!label.has(resolved.key)) label.set(resolved.key, resolved.label);
+      }
     }
-    const sorted = [...label.entries()].sort((a, b) => a[1].localeCompare(b[1]));
-    return [
-      { value: 'all', label: 'All books' },
-      ...sorted.map(([key, name]) => ({ value: key, label: name })),
-    ];
+    return [...label.entries()]
+      .map(([key, name]) => ({ key, label: name }))
+      .sort((a, b) => a.label.localeCompare(b.label));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [compendium, kind, source, bookAliases]);
-  const hasPublications = pubOptions.length > 1;
+  }, [compendium, source, bookAliases]);
+  const hasPublications = allBooks.length > 0;
+  const labelForKey = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const b of allBooks) m.set(b.key, b.label);
+    return m;
+  }, [allBooks]);
 
-  // if the chosen book isn't available in the new kind/source, fall back to all
-  const effectivePub = pubOptions.some((o) => o.value === pub) ? pub : 'all';
+  const toggleBook = (key: string) =>
+    setSelectedBooks((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
 
   const entries = useMemo(() => {
     const list = compendium[kind] as {
@@ -96,14 +108,18 @@ export function CompendiumPanel({ onClose }: PanelComponentProps) {
       publication?: string;
     }[];
     const needle = q.trim().toLowerCase();
-    const filtered = list.filter(
-      (e) =>
-        matchesSource(e.source, source) &&
-        (effectivePub === 'all' || bookKeyOf(e.publication) === effectivePub) &&
-        (needle ? e.name.toLowerCase().includes(needle) : true),
-    );
+    const filtered = list.filter((e) => {
+      if (!matchesSource(e.source, source)) return false;
+      if (selectedBooks.size > 0) {
+        const key = bookKeyOf(e.publication);
+        if (!key || !selectedBooks.has(key)) return false;
+      }
+      if (needle && !e.name.toLowerCase().includes(needle)) return false;
+      return true;
+    });
     return [...filtered].sort((a, b) => a.name.localeCompare(b.name));
-  }, [compendium, kind, q, source, effectivePub]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [compendium, kind, q, source, selectedBooks]);
 
   // Per-kind counts honor the active source filter so the tab badges stay honest.
   const kindCount = (k: CompendiumKind): number => {
@@ -138,8 +154,14 @@ export function CompendiumPanel({ onClose }: PanelComponentProps) {
   };
 
   const sourceLabel = source === 'all' ? '' : sourceOptions.find((o) => o.value === source)?.label;
-  const pubLabel = effectivePub === 'all' ? '' : pubOptions.find((o) => o.value === effectivePub)?.label;
-  const fromClause = [sourceLabel, pubLabel].filter(Boolean).join(' · ');
+  const selectedLabels = [...selectedBooks].map((k) => labelForKey.get(k) ?? k).sort();
+  const booksClause =
+    selectedLabels.length === 0
+      ? ''
+      : selectedLabels.length <= 2
+        ? selectedLabels.join(' or ')
+        : `${selectedLabels.length} selected books`;
+  const fromClause = [sourceLabel, booksClause].filter(Boolean).join(' · ');
 
   return (
     <Panel onClose={onClose} title="Compendium" flush>
@@ -162,16 +184,49 @@ export function CompendiumPanel({ onClose }: PanelComponentProps) {
         )}
       </div>
       {hasPublications && (
-        <div className="filter-row">
-          <span className="filter-label">Book</span>
-          <Dropdown
-            value={effectivePub}
-            options={pubOptions}
-            onChange={setPub}
-            title="Filter by publication source"
-            align="left"
-            className="pub-filter"
-          />
+        <div className="filter-row book-filter-row">
+          <span className="filter-label">Books</span>
+          <div className="book-filter">
+            <button
+              className={`btn sm book-trigger ${booksOpen ? 'primary' : ''}`}
+              onClick={() => setBooksOpen((o) => !o)}
+              title="Filter by one or more source books"
+            >
+              {selectedBooks.size === 0 ? 'All books' : `${selectedBooks.size} selected`}
+            </button>
+            {selectedLabels.map((label) => {
+              const key = [...selectedBooks].find((k) => (labelForKey.get(k) ?? k) === label)!;
+              return (
+                <span
+                  key={key}
+                  className="book-chip"
+                  title="Click to remove"
+                  onClick={() => toggleBook(key)}
+                >
+                  {label} ✕
+                </span>
+              );
+            })}
+            {selectedBooks.size > 0 && (
+              <button className="btn sm ghost" onClick={() => setSelectedBooks(new Set())}>
+                Clear
+              </button>
+            )}
+            {booksOpen && (
+              <div className="book-popover" onMouseLeave={() => setBooksOpen(false)}>
+                {allBooks.map((b) => (
+                  <button
+                    key={b.key}
+                    className={`book-opt ${selectedBooks.has(b.key) ? 'on' : ''}`}
+                    onClick={() => toggleBook(b.key)}
+                  >
+                    <span className="book-check">{selectedBooks.has(b.key) ? '✓' : ''}</span>
+                    {b.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <button
             className="btn sm ghost"
             title="Merge or rename book names"
