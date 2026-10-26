@@ -20,18 +20,39 @@ const BLANK: Omit<PartyMember, 'id'> = {
 export function PartyPanel({ onClose }: PanelComponentProps) {
   const party = useStore((s) => s.party);
   const addPartyMember = useStore((s) => s.addPartyMember);
+  const updatePartyMember = useStore((s) => s.updatePartyMember);
   const removePartyMember = useStore((s) => s.removePartyMember);
   const addCombatant = useStore((s) => s.addCombatant);
   const ensurePanel = useStore((s) => s.ensurePanel);
   const showToast = useStore((s) => s.showToast);
   const [editing, setEditing] = useState<Omit<PartyMember, 'id'> | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const num = (v: string) => parseInt(v, 10) || 0;
 
+  const startNew = () => {
+    setEditingId(null);
+    setEditing({ ...BLANK, abilities: { ...BLANK_ABILITIES } });
+  };
+
+  const startEdit = (m: PartyMember) => {
+    setEditingId(m.id);
+    setEditing({ ...BLANK, ...m, abilities: { ...BLANK_ABILITIES, ...(m.abilities ?? {}) } });
+  };
+
+  const cancel = () => {
+    setEditing(null);
+    setEditingId(null);
+  };
+
   const save = async () => {
     if (!editing || !editing.name.trim()) return;
-    await addPartyMember(editing);
-    setEditing(null);
+    if (editingId) {
+      await updatePartyMember(editingId, editing);
+    } else {
+      await addPartyMember(editing);
+    }
+    cancel();
   };
 
   const toCombat = (m: PartyMember) => {
@@ -54,7 +75,7 @@ export function PartyPanel({ onClose }: PanelComponentProps) {
       onClose={onClose}
       title="Party"
       tools={
-        <button className="btn sm primary" onClick={() => setEditing({ ...BLANK, abilities: { ...BLANK_ABILITIES } })}>
+        <button className="btn sm primary" onClick={startNew}>
           + PC
         </button>
       }
@@ -64,6 +85,7 @@ export function PartyPanel({ onClose }: PanelComponentProps) {
       )}
 
       {party.map((m) => {
+        if (editingId === m.id) return null; // hidden while its edit form is open
         const d = derivePC(m);
         return (
           <div className="party-card" key={m.id}>
@@ -77,6 +99,9 @@ export function PartyPanel({ onClose }: PanelComponentProps) {
               <span style={{ display: 'flex', gap: 4 }}>
                 <button className="btn sm" onClick={() => toCombat(m)}>
                   → Combat
+                </button>
+                <button className="btn sm ghost" onClick={() => startEdit(m)}>
+                  Edit
                 </button>
                 <button className="btn sm ghost" onClick={() => removePartyMember(m.id)}>
                   ✕
@@ -191,11 +216,11 @@ export function PartyPanel({ onClose }: PanelComponentProps) {
             />
           </div>
           <div className="row-gap" style={{ justifyContent: 'flex-end' }}>
-            <button className="btn sm ghost" onClick={() => setEditing(null)}>
+            <button className="btn sm ghost" onClick={cancel}>
               Cancel
             </button>
             <button className="btn sm primary" onClick={save}>
-              Save
+              {editingId ? 'Save changes' : 'Add PC'}
             </button>
           </div>
         </div>
