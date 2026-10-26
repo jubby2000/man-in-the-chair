@@ -101,6 +101,8 @@ interface AppState {
   appendNotes: (text: string) => Promise<void>;
   /** Bumped whenever notes are changed externally (e.g. generator). */
   notesRevision: number;
+  /** Bumped to request the Notes panel be surfaced + scrolled into view. */
+  notesReveal: number;
 
   // session log — auto-logged combat beats + manual notes, feeding a recap export
   sessionLog: SessionLogEntry[];
@@ -218,6 +220,7 @@ export const useStore = create<AppState>((set, get) => ({
   confirmState: null,
   promptState: null,
   notesRevision: 0,
+  notesReveal: 0,
   sessionLog: [],
   combatLogged: false,
   bookAliases: {},
@@ -322,10 +325,11 @@ export const useStore = create<AppState>((set, get) => ({
   addLogNote: (text) => {
     const trimmed = text.trim();
     if (!trimmed) return;
+    get().ensurePanel('notes'); // surface the Notes panel if it's hidden
     set((s) => {
       const sessionLog = [...s.sessionLog, logEntry(trimmed, 'note')];
       void setKV('sessionLog', sessionLog);
-      return { sessionLog };
+      return { sessionLog, notesReveal: s.notesReveal + 1 };
     });
   },
 

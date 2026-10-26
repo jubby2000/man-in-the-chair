@@ -65,6 +65,7 @@ export default function App() {
   const init = useStore((s) => s.init);
   const displayName = useStore((s) => s.displayName);
   const selectedEntry = useStore((s) => s.selectedEntry);
+    const notesReveal = useStore((s) => s.notesReveal);
   const presets = useStore((s) => s.presets);
   const activePresetId = useStore((s) => s.activePresetId);
   const setActivePreset = useStore((s) => s.setActivePreset);
@@ -96,6 +97,18 @@ export default function App() {
       }),
     );
   }, [selectedEntry]);
+
+  // When a log note is added (e.g. "Log to session"), surface + scroll the
+  // Notes panel into view. Skip the initial mount (notesReveal starts at 0).
+  useEffect(() => {
+    if (notesReveal === 0) return;
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        const el = document.querySelector('[data-panel="notes"]');
+        el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }),
+    );
+  }, [notesReveal]);
 
   const active = presets.find((p) => p.id === activePresetId) ?? presets[0];
 
