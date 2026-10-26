@@ -61,6 +61,8 @@ interface AppState {
 
   // dice overlay
   diceOverlay: RollResult | null;
+  /** optional one-shot callback fired with the landed roll (e.g. table rolls) */
+  diceOnSettle: ((total: number, values: number[]) => void) | null;
   rollLog: { notation: string; total: number; values: number[]; at: number }[];
 
   // transient toast
@@ -135,6 +137,8 @@ interface AppState {
   selectEntry: (kind: CompendiumKind, id: string) => void;
 
   rollDice: (notation: string) => RollResult | null;
+  /** roll and animate, invoking `onSettle` once with the landed value */
+  rollDiceWithResult: (notation: string, onSettle: (total: number, values: number[]) => void) => void;
   recordLanded: (notation: string, total: number, values: number[]) => void;
   clearDice: () => void;
 
@@ -208,6 +212,7 @@ export const useStore = create<AppState>((set, get) => ({
   activeEncounterId: 'enc-1',
   party: [],
   diceOverlay: null,
+  diceOnSettle: null,
   rollLog: [],
   toast: null,
   confirmState: null,
@@ -367,14 +372,28 @@ export const useStore = create<AppState>((set, get) => ({
       return null;
     }
     const result = parseAndRoll(notation);
-    if (result) set({ diceOverlay: result });
+    if (result) set({ diceOverlay: result, diceOnSettle: null });
     return result;
   },
+  rollDiceWithResult: (notation, onSettle) => {
+    const n = countPhysicalDice(notation);
+    if (n !== null && n > MAX_DICE) {
+      set({ toast: { id: Date.now(), message: `Too many dice (${n}). Max ${MAX_DICE} per roll.` } });
+      return;
+    }
+    const result = parseAndRoll(notation);
+    if (result) set({ diceOverlay: result, diceOnSettle: onSettle });
+  },
   recordLanded: (notation, total, values) =>
-    set((s) => ({
-      rollLog: [{ notation, total, values, at: Date.now() }, ...s.rollLog].slice(0, 30),
-    })),
-  clearDice: () => set({ diceOverlay: null }),
+    set((s) => {
+      // fire a one-shot table/consumer callback, then drop it
+      if (s.diceOnSettle) s.diceOnSettle(total, values);
+      return {
+        rollLog: [{ notation, total, values, at: Date.now() }, ...s.rollLog].slice(0, 30),
+        diceOnSettle: null,
+      };
+    }),
+  clearDice: () => set({ diceOverlay: null, diceOnSettle: null }),
 
   addCombatant: (c) => set((s) => ({ combatants: [...s.combatants, { ...c, id: uid() }] })),
 

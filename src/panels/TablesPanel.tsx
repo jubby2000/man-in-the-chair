@@ -7,6 +7,10 @@ import { buildCustomTable, rollOnTable, type TableRoll } from '../lib/tables';
 
 const uid = () => Math.random().toString(36).slice(2, 10);
 
+// Die sizes the 3D overlay can render correctly (others fall back to an
+// instant roll so the result is still right).
+const ROLLABLE = new Set([4, 6, 8, 10, 12, 20, 100]);
+
 export function TablesPanel({ onClose }: PanelComponentProps) {
   const customTables = useStore((s) => s.customTables);
   const addCustomTable = useStore((s) => s.addCustomTable);
@@ -14,6 +18,7 @@ export function TablesPanel({ onClose }: PanelComponentProps) {
   const addLogNote = useStore((s) => s.addLogNote);
   const showToast = useStore((s) => s.showToast);
   const confirm = useStore((s) => s.confirm);
+  const rollDiceWithResult = useStore((s) => s.rollDiceWithResult);
 
   const tables = useMemo<RandomTable[]>(() => [...SRD_TABLES, ...customTables], [customTables]);
   const [activeId, setActiveId] = useState(tables[0]?.id ?? '');
@@ -26,8 +31,19 @@ export function TablesPanel({ onClose }: PanelComponentProps) {
 
   const roll = () => {
     if (!active) return;
-    const r = rollOnTable(active);
-    setResult(r);
+    const die = active.die || active.rows.length || 1;
+    setResult(null);
+    if (ROLLABLE.has(die)) {
+      // Throw the physical dice; when they settle, map the landed number to a row.
+      rollDiceWithResult(`1d${die}`, (total) => {
+        const n = (((total - 1) % die) + die) % die + 1; // clamp into [1, die]
+        const row = active.rows.find((r) => n >= r.min && n <= r.max) ?? null;
+        setResult({ roll: n, row });
+      });
+    } else {
+      // Non-standard die (e.g. a 37-entry flat list) has no 3D geometry; roll instantly.
+      setResult(rollOnTable(active));
+    }
   };
 
   const logResult = () => {
