@@ -4,6 +4,7 @@ import { EncounterAddButton } from '../components/EncounterAddButton';
 import { Dropdown } from '../components/Dropdown';
 import type { PanelComponentProps } from '../types';
 import { useStore } from '../store/useStore';
+import { publicationBook } from '../lib/import';
 import type { CompendiumKind } from '../types';
 
 const KINDS: { key: CompendiumKind; label: string }[] = [
@@ -57,7 +58,7 @@ export function CompendiumPanel({ onClose }: PanelComponentProps) {
     const list = compendium[kind] as { source?: string; publication?: string }[];
     const set = new Set<string>();
     for (const e of list) {
-      if (e.publication && matchesSource(e.source, source)) set.add(e.publication);
+      if (e.publication && matchesSource(e.source, source)) set.add(publicationBook(e.publication));
     }
     const sorted = [...set].sort((a, b) => a.localeCompare(b));
     return [
@@ -81,7 +82,7 @@ export function CompendiumPanel({ onClose }: PanelComponentProps) {
     const filtered = list.filter(
       (e) =>
         matchesSource(e.source, source) &&
-        (effectivePub === 'all' || e.publication === effectivePub) &&
+        (effectivePub === 'all' || (e.publication && publicationBook(e.publication) === effectivePub)) &&
         (needle ? e.name.toLowerCase().includes(needle) : true),
     );
     return [...filtered].sort((a, b) => a.name.localeCompare(b.name));

@@ -38,28 +38,32 @@ function namedEntry(node: Record<string, unknown>) {
   return { name: str(node.name), desc: texts.join('\n\n') };
 }
 
-// Normalize a raw publication string to a clean book name for filtering:
-// "Volo's Guide to Monsters, p. 209" -> "Volo's Guide to Monsters".
-// Strips a leading "Source." label and a trailing ", p. N" / " p. N" page ref.
-export function normalizePublication(raw: string): string {
-  return raw
-    .replace(/^\s*source[:.]?\s*/i, '')
-    .replace(/[,;]?\s*p(?:g|p|age)?\.?\s*\d+.*$/i, '')
-    .trim();
+// Collapse a full publication citation to just its (primary) book name, for
+// grouping/filtering. The creature's stat block lives in the first book cited,
+// so we take everything up to the first page reference:
+//   "Out of the Abyss p. 224 Mordenkainen's Tome of Foes" -> "Out of the Abyss"
+//   "Volo's Guide to Monsters, p. 209"                     -> "Volo's Guide to Monsters"
+// A leading "Source." label is stripped. No page ref -> returned as-is.
+export function publicationBook(raw: string): string {
+  const cleaned = raw.replace(/^\s*source[:.]?\s*/i, '').trim();
+  // cut at the first page marker ("p. 224", "pg 224", "page 224") or a bare
+  // ", 224" trailing number list
+  const cut = cleaned.replace(/[\s,;]+p(?:g|age)?\.?\s*\d+.*$/i, '').replace(/,\s*\d+\s*$/,'');
+  return cut.trim() || cleaned;
 }
 
-// FightClub encodes a monster/spell/item's publication source two ways:
+// The FULL publication citation (book + page, possibly a secondary book),
+// preserved for display in the stat block. FightClub encodes it two ways:
 //  - a top-level <source> element (newer exports), or
 //  - a <trait name="Source"><text>…</text></trait> (common exports; this is
 //    what renders as the "Source. Volo's Guide…" line in the stat block).
-// Return the normalized book name, or '' if none.
 function extractPublication(node: Record<string, any>): string {
   const direct = str(node.source);
-  if (direct) return normalizePublication(direct);
+  if (direct) return direct.trim();
   const trait = toArray<Record<string, any>>(node.trait).find(
     (t) => str(t.name).trim().toLowerCase() === 'source',
   );
-  if (trait) return normalizePublication(toArray(trait.text).map(str).join(' '));
+  if (trait) return toArray(trait.text).map(str).join(' ').trim();
   return '';
 }
 

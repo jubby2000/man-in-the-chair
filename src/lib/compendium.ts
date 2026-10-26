@@ -14,7 +14,7 @@ import type {
   Spell,
 } from '../types';
 import { db } from './db';
-import { COMPENDIUM_KINDS, normalizePublication } from './import';
+import { COMPENDIUM_KINDS } from './import';
 
 const EMPTY: Compendium = {
   monsters: [], spells: [], items: [], conditions: [], rules: [],
@@ -29,16 +29,18 @@ type NamedTraited = {
   traits?: { name: string; desc: string }[];
 };
 
-// Backfill `publication` for entries imported before the importer extracted it:
-// if there's no publication but a "Source" trait exists, lift it out and drop
-// the trait so it stops double-rendering. Idempotent and cheap.
-function backfillPublication<T extends NamedTraited>(entry: T): T {
+// Normalize an entry's publication at load time. We keep the FULL citation
+// (page number and any secondary book) for display in the stat block; the
+// Compendium filter collapses it to a book name for grouping separately.
+// This only lifts a "Source" trait into the publication field (so it stops
+// double-rendering) when the field isn't already set. Idempotent.
+function normalizeEntry<T extends NamedTraited>(entry: T): T {
   if (entry.publication || !Array.isArray(entry.traits)) return entry;
   const idx = entry.traits.findIndex((t) => t.name?.trim().toLowerCase() === 'source');
   if (idx === -1) return entry;
-  const raw = entry.traits[idx].desc ?? '';
+  const raw = (entry.traits[idx].desc ?? '').trim();
   const traits = entry.traits.filter((_, i) => i !== idx);
-  return { ...entry, publication: normalizePublication(raw) || undefined, traits };
+  return { ...entry, publication: raw || undefined, traits };
 }
 
 // Lazily load bundled edition data so the initial bundle stays small. Only the
@@ -86,7 +88,7 @@ function applySources(base: Compendium, sources: ImportedSource[]): Compendium {
     for (const src of sources) {
       const incoming = (src.data[kind] as Named[] | undefined) ?? [];
       for (const raw of incoming) {
-        const entry = backfillPublication({ ...raw, source: src.id } as NamedTraited) as Named;
+        const entry = normalizeEntry({ ...raw, source: src.id } as NamedTraited) as Named;
         const key = entry.name.toLowerCase();
         const existing = byName.get(key);
 
