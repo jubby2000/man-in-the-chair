@@ -38,17 +38,30 @@ function namedEntry(node: Record<string, unknown>) {
   return { name: str(node.name), desc: texts.join('\n\n') };
 }
 
+// Canonicalize typography so variants of the "same" name collapse: curly vs.
+// straight apostrophes/quotes, en/em dashes vs. hyphen, and runs of whitespace.
+// (Baldur’s vs Baldur's, Xanathar’s vs Xanathar's, etc.)
+export function canonicalizeText(s: string): string {
+  return s
+    .replace(/[\u2018\u2019\u02BC\u2032]/g, "'") // ‘ ’ ʼ ′ -> '
+    .replace(/[\u201C\u201D\u2033]/g, '"') //  “ ” ″ -> "
+    .replace(/[\u2013\u2014\u2212]/g, '-') // – — − -> -
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 // Collapse a full publication citation to just its (primary) book name, for
 // grouping/filtering. The creature's stat block lives in the first book cited,
 // so we take everything up to the first page reference:
 //   "Out of the Abyss p. 224 Mordenkainen's Tome of Foes" -> "Out of the Abyss"
 //   "Volo's Guide to Monsters, p. 209"                     -> "Volo's Guide to Monsters"
-// A leading "Source." label is stripped. No page ref -> returned as-is.
+// A leading "Source." label is stripped, typography is canonicalized so
+// straight/curly punctuation variants merge, and a trailing page ref is cut.
 export function publicationBook(raw: string): string {
-  const cleaned = raw.replace(/^\s*source[:.]?\s*/i, '').trim();
+  const cleaned = canonicalizeText(raw.replace(/^\s*source[:.]?\s*/i, ''));
   // cut at the first page marker ("p. 224", "pg 224", "page 224") or a bare
   // ", 224" trailing number list
-  const cut = cleaned.replace(/[\s,;]+p(?:g|age)?\.?\s*\d+.*$/i, '').replace(/,\s*\d+\s*$/,'');
+  const cut = cleaned.replace(/[\s,;]+p(?:g|age)?\.?\s*\d+.*$/i, '').replace(/,\s*\d+\s*$/, '');
   return cut.trim() || cleaned;
 }
 
