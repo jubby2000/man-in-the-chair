@@ -324,9 +324,11 @@ export const useStore = create<AppState>((set, get) => ({
   updateCombatant: (id, patch) =>
     set((s) => {
       const combatants = s.combatants.map((c) => (c.id === id ? { ...c, ...patch } : c));
-      // Log a drop when a combatant's HP crosses from >0 to <=0 during tracked combat.
+      // Log a drop when a combatant's HP crosses from >0 to <=0. Gated on there
+      // being combatants (always true here), NOT on a formal combat-start, so a
+      // drop logs even if the DM never hit Sort / advanced a turn.
       let logPatch: Partial<AppState> = {};
-      if (s.combatLogged && patch.currentHp !== undefined) {
+      if (patch.currentHp !== undefined) {
         const before = s.combatants.find((c) => c.id === id);
         const after = combatants.find((c) => c.id === id);
         if (before && after && before.currentHp > 0 && after.currentHp <= 0) {
@@ -364,16 +366,24 @@ export const useStore = create<AppState>((set, get) => ({
       if (s.combatants.length === 0) return s;
       let next = s.activeTurn + 1;
       let round = s.round;
-      let logPatch: Partial<AppState> = {};
+      const events: SessionLogEntry[] = [];
+      let combatLogged = s.combatLogged;
+      // Auto-start combat on the first turn advance if the DM never hit Sort.
+      if (!combatLogged) {
+        const names = s.combatants.map((c) => c.name).join(', ');
+        events.push(logEntry(`Combat started — ${names}`, 'auto', 'combat-start'));
+        combatLogged = true;
+      }
       if (next >= s.combatants.length) {
         next = 0;
         round = s.round + 1;
-        // only log round advances while combat is being tracked
-        if (s.combatLogged) {
-          const sessionLog = [...s.sessionLog, logEntry(`Round ${round} begins`, 'auto', 'round')];
-          void setKV('sessionLog', sessionLog);
-          logPatch = { sessionLog };
-        }
+        events.push(logEntry(`Round ${round} begins`, 'auto', 'round'));
+      }
+      let logPatch: Partial<AppState> = {};
+      if (events.length) {
+        const sessionLog = [...s.sessionLog, ...events];
+        void setKV('sessionLog', sessionLog);
+        logPatch = { sessionLog, combatLogged };
       }
       return { activeTurn: next, round, ...selectionForTurn(s.combatants, next), ...logPatch };
     }),
