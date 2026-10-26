@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Panel } from '../components/Panel';
 import { EncounterAddButton } from '../components/EncounterAddButton';
+import { Dropdown } from '../components/Dropdown';
 import type { PanelComponentProps } from '../types';
 import { useStore } from '../store/useStore';
 import type { CompendiumKind } from '../types';
@@ -17,19 +18,54 @@ const KINDS: { key: CompendiumKind; label: string }[] = [
   { key: 'rules', label: 'Rules' },
 ];
 
+// 'all' = every source, 'srd' = bundled SRD (incl. SRD+import merges),
+// otherwise an imported source id. A merged entry (source "srd+<id>") counts
+// as BOTH srd and that import, so neither filter hides it.
+function matchesSource(entrySource: string | undefined, filter: string): boolean {
+  if (filter === 'all') return true;
+  const src = entrySource ?? 'srd';
+  if (filter === 'srd') return src === 'srd' || src.startsWith('srd+');
+  // an import id: match the pure import or a "srd+<id>" merge
+  return src === filter || src === `srd+${filter}`;
+}
+
 export function CompendiumPanel({ onClose }: PanelComponentProps) {
   const compendium = useStore((s) => s.compendium);
+  const imports = useStore((s) => s.imports);
   const selectEntry = useStore((s) => s.selectEntry);
   const selectedEntry = useStore((s) => s.selectedEntry);
   const [kind, setKind] = useState<CompendiumKind>('monsters');
   const [q, setQ] = useState('');
+  const [source, setSource] = useState<string>('all');
+
+  // Only offer the source filter once there's something to distinguish SRD from.
+  const hasImports = imports.length > 0;
+  const sourceOptions = useMemo(
+    () => [
+      { value: 'all', label: 'All sources' },
+      { value: 'srd', label: 'SRD' },
+      ...imports.map((im) => ({ value: im.id, label: im.name })),
+    ],
+    [imports],
+  );
 
   const entries = useMemo(() => {
     const list = compendium[kind] as { id: string; name: string; source?: string }[];
     const needle = q.trim().toLowerCase();
-    const filtered = needle ? list.filter((e) => e.name.toLowerCase().includes(needle)) : list;
+    const filtered = list.filter(
+      (e) =>
+        matchesSource(e.source, source) &&
+        (needle ? e.name.toLowerCase().includes(needle) : true),
+    );
     return [...filtered].sort((a, b) => a.name.localeCompare(b.name));
-  }, [compendium, kind, q]);
+  }, [compendium, kind, q, source]);
+
+  // Per-kind counts honor the active source filter so the tab badges stay honest.
+  const kindCount = (k: CompendiumKind): number => {
+    const list = compendium[k] as { source?: string }[];
+    if (source === 'all') return list.length;
+    return list.reduce((n, e) => (matchesSource(e.source, source) ? n + 1 : n), 0);
+  };
 
   // Rendering thousands of rows (Items has ~1800) stalls the panel and makes
   // tab switches feel stuck. Cap the DOM to a window and nudge toward search.
@@ -56,6 +92,8 @@ export function CompendiumPanel({ onClose }: PanelComponentProps) {
     }
   };
 
+  const sourceLabel = source === 'all' ? '' : sourceOptions.find((o) => o.value === source)?.label;
+
   return (
     <Panel onClose={onClose} title="Compendium" flush>
       <div className="search-row">
@@ -65,6 +103,16 @@ export function CompendiumPanel({ onClose }: PanelComponentProps) {
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
+        {hasImports && (
+          <Dropdown
+            value={source}
+            options={sourceOptions}
+            onChange={setSource}
+            title="Filter by source"
+            align="right"
+            className="source-filter"
+          />
+        )}
       </div>
       <div className="kind-tabs">
         {KINDS.map((k) => (
@@ -74,12 +122,15 @@ export function CompendiumPanel({ onClose }: PanelComponentProps) {
             onClick={() => setKind(k.key)}
           >
             {k.label}
-            <span style={{ opacity: 0.6 }}> {(compendium[k.key] as unknown[]).length}</span>
+            <span style={{ opacity: 0.6 }}> {kindCount(k.key)}</span>
           </button>
         ))}
       </div>
       {entries.length === 0 ? (
-        <div className="empty">No {kind} match “{q}”.</div>
+        <div className="empty">
+          No {kind}
+          {sourceLabel ? ` from ${sourceLabel}` : ''} match{q ? ` “${q}”` : ''}.
+        </div>
       ) : (
         <ul className="list">
           {shown.map((e) => (

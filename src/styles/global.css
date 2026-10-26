@@ -330,6 +330,20 @@ select.select {
   gap: 6px;
   flex-shrink: 0;
 }
+.search-row .input {
+  flex: 1;
+  min-width: 0;
+}
+.source-filter {
+  flex: 0 0 auto;
+  max-width: 45%;
+}
+.source-filter .dropdown-value {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .kind-tabs {
   display: flex;
   gap: 2px;
