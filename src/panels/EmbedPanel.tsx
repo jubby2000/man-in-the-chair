@@ -70,8 +70,8 @@ export function EmbedPanel({ onClose }: PanelComponentProps) {
           src={src}
           title="Custom embed"
           sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-presentation"
-          allow="autoplay; fullscreen; clipboard-write; encrypted-media"
-          referrerPolicy="no-referrer"
+          allow="autoplay; fullscreen; clipboard-write; encrypted-media; picture-in-picture"
+          referrerPolicy="strict-origin-when-cross-origin"
         />
       ) : (
         <div className="embed-setup">
