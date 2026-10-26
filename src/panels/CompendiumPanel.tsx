@@ -5,7 +5,7 @@ import { Dropdown } from '../components/Dropdown';
 import { SourceCleanupDialog } from '../components/SourceCleanupDialog';
 import type { PanelComponentProps } from '../types';
 import { useStore } from '../store/useStore';
-import { publicationBook } from '../lib/import';
+import { publicationBook, bookKey } from '../lib/import';
 import type { CompendiumKind } from '../types';
 
 const KINDS: { key: CompendiumKind; label: string }[] = [
@@ -43,11 +43,12 @@ export function CompendiumPanel({ onClose }: PanelComponentProps) {
   const [pub, setPub] = useState<string>('all');
   const [showCleanup, setShowCleanup] = useState(false);
 
-  // The canonical book name for an entry: auto-collapsed, then folded through
-  // any user-defined merges (the Clean up sources tool).
-  const bookOf = (publication?: string): string | undefined => {
+  // The canonical grouping KEY for an entry's book: auto-collapse the citation
+  // to a book name, lowercase it (so "Into"/"into" group together), then fold
+  // through any user-defined merge (the Clean up sources tool).
+  const bookKeyOf = (publication?: string): string | undefined => {
     if (!publication) return undefined;
-    const base = publicationBook(publication);
+    const base = bookKey(publicationBook(publication));
     return bookAliases[base] ?? base;
   };
 
@@ -62,20 +63,21 @@ export function CompendiumPanel({ onClose }: PanelComponentProps) {
     [imports],
   );
 
-  // Distinct publication sources present in the current kind, under the active
-  // file-source filter. This is a second, independent axis (a book like "Volo's
-  // Guide" can span multiple import files), surfaced only when some entry has one.
+  // Distinct books present in the current kind, under the active file-source
+  // filter. Grouped by case-insensitive key; the label is a representative
+  // display name (first-seen original casing for that key).
   const pubOptions = useMemo(() => {
     const list = compendium[kind] as { source?: string; publication?: string }[];
-    const set = new Set<string>();
+    const label = new Map<string, string>();
     for (const e of list) {
-      const book = bookOf(e.publication);
-      if (book && matchesSource(e.source, source)) set.add(book);
+      const key = bookKeyOf(e.publication);
+      if (!key || !matchesSource(e.source, source)) continue;
+      if (!label.has(key)) label.set(key, publicationBook(e.publication!));
     }
-    const sorted = [...set].sort((a, b) => a.localeCompare(b));
+    const sorted = [...label.entries()].sort((a, b) => a[1].localeCompare(b[1]));
     return [
       { value: 'all', label: 'All books' },
-      ...sorted.map((p) => ({ value: p, label: p })),
+      ...sorted.map(([key, name]) => ({ value: key, label: name })),
     ];
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [compendium, kind, source, bookAliases]);
@@ -95,7 +97,7 @@ export function CompendiumPanel({ onClose }: PanelComponentProps) {
     const filtered = list.filter(
       (e) =>
         matchesSource(e.source, source) &&
-        (effectivePub === 'all' || bookOf(e.publication) === effectivePub) &&
+        (effectivePub === 'all' || bookKeyOf(e.publication) === effectivePub) &&
         (needle ? e.name.toLowerCase().includes(needle) : true),
     );
     return [...filtered].sort((a, b) => a.name.localeCompare(b.name));
@@ -134,7 +136,7 @@ export function CompendiumPanel({ onClose }: PanelComponentProps) {
   };
 
   const sourceLabel = source === 'all' ? '' : sourceOptions.find((o) => o.value === source)?.label;
-  const pubLabel = effectivePub === 'all' ? '' : effectivePub;
+  const pubLabel = effectivePub === 'all' ? '' : pubOptions.find((o) => o.value === effectivePub)?.label;
   const fromClause = [sourceLabel, pubLabel].filter(Boolean).join(' · ');
 
   return (

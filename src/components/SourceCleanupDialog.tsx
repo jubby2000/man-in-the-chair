@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useStore } from '../store/useStore';
-import { publicationBook } from '../lib/import';
+import { publicationBook, bookKey } from '../lib/import';
 import type { CompendiumKind } from '../types';
 
 const KINDS: CompendiumKind[] = [
@@ -16,45 +16,43 @@ export function SourceCleanupDialog({ onClose }: { onClose: () => void }) {
   const setBookAlias = useStore((s) => s.setBookAlias);
   const clearBookAlias = useStore((s) => s.clearBookAlias);
   const [editing, setEditing] = useState<string | null>(null);
+  // editing holds the KEY being renamed; draft is the typed display text
   const [draft, setDraft] = useState('');
 
-  // Count entries per canonical (post-alias) book across the whole compendium.
+  // Group books by case-insensitive key (post-alias) across the whole
+  // compendium: { key -> { label (display name), count } }.
   const books = useMemo(() => {
-    const counts = new Map<string, number>();
+    const map = new Map<string, { label: string; count: number }>();
     for (const k of KINDS) {
       for (const e of compendium[k] as { publication?: string }[]) {
         if (!e.publication) continue;
-        const base = publicationBook(e.publication);
-        const canon = bookAliases[base] ?? base;
-        counts.set(canon, (counts.get(canon) ?? 0) + 1);
+        const base = bookKey(publicationBook(e.publication));
+        const key = bookAliases[base] ?? base;
+        const existing = map.get(key);
+        if (existing) existing.count += 1;
+        else map.set(key, { label: publicationBook(e.publication), count: 1 });
       }
     }
-    return [...counts.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+    return [...map.entries()].sort((a, b) => a[1].label.localeCompare(b[1].label));
   }, [compendium, bookAliases]);
 
-  // Pre-alias base names (merge targets to pick from) for the datalist.
-  const allBaseNames = useMemo(() => {
-    const set = new Set<string>();
-    for (const k of KINDS) {
-      for (const e of compendium[k] as { publication?: string }[]) {
-        if (e.publication) {
-          const base = publicationBook(e.publication);
-          set.add(bookAliases[base] ?? base);
-        }
-      }
-    }
-    return [...set].sort();
-  }, [compendium, bookAliases]);
+  // Display names to suggest as merge targets in the datalist.
+  const allLabels = useMemo(() => books.map(([, v]) => v.label).sort(), [books]);
+  // key -> label, to render active merges in human terms
+  const labelFor = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const [key, v] of books) m.set(key, v.label);
+    return m;
+  }, [books]);
 
-  // active merges (alias -> canonical) for the "undo" list
   const activeMerges = Object.entries(bookAliases);
 
-  const startEdit = (name: string) => {
-    setEditing(name);
-    setDraft(name);
+  const startEdit = (key: string, label: string) => {
+    setEditing(key);
+    setDraft(label);
   };
   const save = async () => {
-    if (editing) await setBookAlias(editing, draft);
+    if (editing) await setBookAlias(editing, bookKey(draft));
     setEditing(null);
     setDraft('');
   };
@@ -72,9 +70,9 @@ export function SourceCleanupDialog({ onClose }: { onClose: () => void }) {
           {books.length === 0 ? (
             <div className="empty">No imported sources carry a book name.</div>
           ) : (
-            books.map(([name, count]) => (
-              <div className="cleanup-row" key={name}>
-                {editing === name ? (
+            books.map(([key, { label, count }]) => (
+              <div className="cleanup-row" key={key}>
+                {editing === key ? (
                   <>
                     <input
                       className="input"
@@ -92,9 +90,9 @@ export function SourceCleanupDialog({ onClose }: { onClose: () => void }) {
                   </>
                 ) : (
                   <>
-                    <span className="cleanup-name" title={name}>{name}</span>
+                    <span className="cleanup-name" title={label}>{label}</span>
                     <span className="meta cleanup-count">{count}</span>
-                    <button className="btn sm" onClick={() => startEdit(name)}>Rename / merge</button>
+                    <button className="btn sm" onClick={() => startEdit(key, label)}>Rename / merge</button>
                   </>
                 )}
               </div>
@@ -103,7 +101,7 @@ export function SourceCleanupDialog({ onClose }: { onClose: () => void }) {
         </div>
 
         <datalist id="cleanup-books">
-          {allBaseNames.map((n) => <option key={n} value={n} />)}
+          {allLabels.map((n) => <option key={n} value={n} />)}
         </datalist>
 
         {activeMerges.length > 0 && (
@@ -112,7 +110,7 @@ export function SourceCleanupDialog({ onClose }: { onClose: () => void }) {
             {activeMerges.map(([from, to]) => (
               <div className="cleanup-merge-row" key={from}>
                 <span className="meta">
-                  “{from}” → <b>{to}</b>
+                  “{from}” → <b>{labelFor.get(to) ?? to}</b>
                 </span>
                 <button className="btn sm ghost" onClick={() => void clearBookAlias(from)}>
                   Undo

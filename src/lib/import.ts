@@ -66,6 +66,13 @@ export function publicationBook(raw: string): string {
   return cut.trim() || cleaned;
 }
 
+// A case-insensitive grouping key for a book name. "Descent Into Avernus" and
+// "Descent into Avernus" share one key, so they group together automatically
+// without the user having to merge them by hand.
+export function bookKey(name: string): string {
+  return name.toLowerCase();
+}
+
 // The FULL publication citation (book + page, possibly a secondary book),
 // preserved for display in the stat block. FightClub encodes it two ways:
 //  - a top-level <source> element (newer exports), or
