@@ -1624,3 +1624,39 @@ select.select {
 .confirm-modal {
   width: min(400px, 92vw);
 }
+
+/* ---- Party ability inputs & derived saves ---- */
+.ability-inputs {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 5px;
+}
+.ability-input {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.ability-input-lbl {
+  font-size: 10px;
+  color: var(--text-faint);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+.ability-input .input {
+  padding: 6px 4px;
+  text-align: center;
+}
+.party-saves {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+.save-chip {
+  font-size: 11px;
+  background: var(--bg-elev-2);
+  color: var(--text-dim);
+  border-radius: var(--radius-pill);
+  padding: 2px 8px;
+}

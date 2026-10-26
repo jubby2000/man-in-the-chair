@@ -208,9 +208,12 @@ export interface PartyMember {
   level: number;
   ac: number;
   maxHp: number;
-  passivePerception: number;
-  passiveInvestigation?: number;
-  passiveInsight?: number;
+  /** 6 ability scores; derived stats (mods, saves, passives, spell DC) come from these */
+  abilities?: Ability;
+  /** which ability casts spells (enables spell save DC / attack); undefined = non-caster */
+  spellcastingAbility?: keyof Ability;
+  /** legacy/manual override — if set, shown instead of the derived passive Perception */
+  passivePerception?: number;
   notes?: string;
 }
 
