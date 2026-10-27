@@ -2282,3 +2282,32 @@ select.select {
   color: inherit;
   margin-bottom: 6px;
 }
+
+/* Rule-section jump: brief highlight on the heading you landed on. */
+@keyframes anchor-flash {
+  0%, 35% { background: var(--accent-soft); }
+  100% { background: transparent; }
+}
+.md-h.anchor-flash {
+  animation: anchor-flash 1.6s ease-out;
+  border-radius: var(--radius-sm);
+  margin-left: -4px;
+  margin-right: -4px;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .md-h.anchor-flash {
+    animation: none;
+    background: var(--accent-soft);
+  }
+}
+/* Group headings in Rules search results (Sections / Mentioned in) */
+.rules-result-group {
+  list-style: none;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  padding: 10px 12px 4px;
+}

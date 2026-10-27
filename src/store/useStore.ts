@@ -46,7 +46,9 @@ interface AppState {
   // selection drives the stat block panel
   selectedMonsterId: string | null;
   // generic selection for the detail panel (any compendium kind)
-  selectedEntry: { kind: CompendiumKind; id: string } | null;
+  // anchor: optional heading to scroll to (rule sections); seq bumps on every
+  // selection so re-choosing the same section scrolls again.
+  selectedEntry: { kind: CompendiumKind; id: string; anchor?: string; seq?: number } | null;
 
   // combat
   combatants: Combatant[];
@@ -137,7 +139,7 @@ interface AppState {
   removeImport: (id: string) => Promise<void>;
 
   selectMonster: (id: string | null) => void;
-  selectEntry: (kind: CompendiumKind, id: string) => void;
+  selectEntry: (kind: CompendiumKind, id: string, anchor?: string) => void;
 
   rollDice: (notation: string) => RollResult | null;
   /** roll and animate, invoking `onSettle` once with the landed value */
@@ -290,9 +292,12 @@ export const useStore = create<AppState>((set, get) => ({
 
   selectMonster: (id) => set({ selectedMonsterId: id, selectedEntry: id ? { kind: 'monsters', id } : null }),
 
-  selectEntry: (kind, id) => {
+  selectEntry: (kind, id, anchor) => {
     get().ensurePanel('statblock'); // surface the Detail panel if it's hidden
-    set({ selectedEntry: { kind, id }, selectedMonsterId: kind === 'monsters' ? id : null });
+    set({
+      selectedEntry: { kind, id, anchor, seq: Date.now() },
+      selectedMonsterId: kind === 'monsters' ? id : null,
+    });
   },
 
   showToast: (message) => set({ toast: { id: Date.now(), message } }),

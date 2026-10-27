@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Panel } from '../components/Panel';
 import { Markdown } from '../components/Markdown';
 import type { PanelComponentProps, Rule, Condition } from '../types';
 import { useStore } from '../store/useStore';
+import { ruleSections, revealAnchor, type RuleSection } from '../lib/ruleSections';
 
 type Entry =
   | { kind: 'condition'; id: string; name: string; desc: string }
@@ -13,6 +14,28 @@ export function RulesPanel({ onClose }: PanelComponentProps) {
   const conditions = useStore((s) => s.compendium.conditions) as Condition[];
   const [q, setQ] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // heading to jump to inside the selected rule; seq re-triggers repeat jumps
+  const [jump, setJump] = useState<{ anchor: string; seq: number } | null>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  const open = (id: string | null, anchor?: string) => {
+    setSelectedId(id);
+    setJump(anchor ? { anchor, seq: Date.now() } : null);
+  };
+
+  useEffect(() => {
+    if (!jump || !selectedId) return;
+    let cleanup = () => {};
+    const raf = requestAnimationFrame(() => {
+      cleanup = revealAnchor(contentRef.current, jump.anchor);
+    });
+    return () => {
+      cancelAnimationFrame(raf);
+      cleanup();
+    };
+  }, [jump, selectedId]);
+
+  const sections = useMemo(() => ruleSections(rules), [rules]);
 
   const byName = useMemo(() => {
     const m = new Map<string, Rule>();
@@ -53,14 +76,24 @@ export function RulesPanel({ onClose }: PanelComponentProps) {
     [allEntries, selectedId],
   );
 
-  // Search across everything; when searching we show a flat result list.
+  // Search across everything, grouped: name matches, then sections (headings
+  // inside a rule, e.g. "Making an Attack › Grappling"), then entries that only
+  // mention the term in their text.
   const searchResults = useMemo(() => {
     const needle = q.trim().toLowerCase();
     if (!needle) return null;
-    return allEntries
-      .filter((e) => e.name.toLowerCase().includes(needle) || e.desc.toLowerCase().includes(needle))
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [q, allEntries]);
+    const byName = (a: Entry, b: Entry) => a.name.localeCompare(b.name);
+    const named = allEntries.filter((e) => e.name.toLowerCase().includes(needle)).sort(byName);
+    const namedIds = new Set(named.map((e) => e.id));
+    const secs: RuleSection[] = sections
+      .filter((sec) => sec.heading.toLowerCase().includes(needle))
+      .sort((a, b) => a.heading.localeCompare(b.heading));
+    const secRuleIds = new Set(secs.map((sec) => sec.ruleId));
+    const mentions = allEntries
+      .filter((e) => !namedIds.has(e.id) && !secRuleIds.has(e.id) && e.desc.toLowerCase().includes(needle))
+      .sort(byName);
+    return { named, secs, mentions, count: named.length + secs.length + mentions.length };
+  }, [q, allEntries, sections]);
 
   return (
     <Panel onClose={onClose} title="Rules Reference" flush>
@@ -75,17 +108,17 @@ export function RulesPanel({ onClose }: PanelComponentProps) {
 
       {selected ? (
         <div className="rules-detail">
-          <button className="btn sm ghost rules-back" onClick={() => setSelectedId(null)}>
+          <button className="btn sm ghost rules-back" onClick={() => open(null)}>
             ‹ Back
           </button>
-          <div className="rules-content">
+          <div className="rules-content" ref={contentRef}>
             <Markdown text={selected.desc || '_No description._'} />
             {selected.kind === 'rule' && (childrenOf.get(selected.id)?.length ?? 0) > 0 && (
               <>
                 <div className="section-title">In this section</div>
                 <ul className="list" style={{ margin: 0 }}>
                   {childrenOf.get(selected.id)!.map((c) => (
-                    <li key={c.id} className="list-item" onClick={() => setSelectedId(c.id)}>
+                    <li key={c.id} className="list-item" onClick={() => open(c.id)}>
                       <span>{c.name}</span>
                       <span className="meta">›</span>
                     </li>
@@ -96,12 +129,36 @@ export function RulesPanel({ onClose }: PanelComponentProps) {
           </div>
         </div>
       ) : searchResults ? (
-        searchResults.length === 0 ? (
+        searchResults.count === 0 ? (
           <div className="empty">No rules or conditions match “{q}”.</div>
         ) : (
           <ul className="list">
-            {searchResults.map((e) => (
-              <li key={e.kind + e.id} className="list-item" onClick={() => setSelectedId(e.id)}>
+            {searchResults.named.map((e) => (
+              <li key={e.kind + e.id} className="list-item" onClick={() => open(e.id)}>
+                <span>
+                  {e.name}{' '}
+                  <span className="badge">{e.kind === 'condition' ? 'Condition' : 'Rule'}</span>
+                </span>
+                <span className="meta">›</span>
+              </li>
+            ))}
+            {searchResults.secs.length > 0 && <li className="rules-result-group">Sections</li>}
+            {searchResults.secs.map((sec) => (
+              <li
+                key={sec.ruleId + '#' + sec.anchor}
+                className="list-item"
+                onClick={() => open(sec.ruleId, sec.anchor)}
+              >
+                <span>
+                  <span className="meta">{sec.ruleName} ›</span> {sec.heading}
+                  {sec.parents.length > 0 && <span className="meta"> · {sec.parents.join(' › ')}</span>}
+                </span>
+                <span className="meta">›</span>
+              </li>
+            ))}
+            {searchResults.mentions.length > 0 && <li className="rules-result-group">Mentioned in</li>}
+            {searchResults.mentions.map((e) => (
+              <li key={e.kind + e.id} className="list-item" onClick={() => open(e.id)}>
                 <span>
                   {e.name}{' '}
                   <span className="badge">{e.kind === 'condition' ? 'Condition' : 'Rule'}</span>
@@ -119,7 +176,7 @@ export function RulesPanel({ onClose }: PanelComponentProps) {
               .slice()
               .sort((a, b) => a.name.localeCompare(b.name))
               .map((c) => (
-                <button key={c.id} className="rules-chip" onClick={() => setSelectedId(c.id)}>
+                <button key={c.id} className="rules-chip" onClick={() => open(c.id)}>
                   {c.name}
                 </button>
               ))}
@@ -131,14 +188,14 @@ export function RulesPanel({ onClose }: PanelComponentProps) {
               const kids = childrenOf.get(r.id) ?? [];
               return (
                 <li key={r.id} className="list-item rules-cat" style={{ display: 'block' }}>
-                  <div className="rules-cat-head" onClick={() => setSelectedId(r.id)}>
+                  <div className="rules-cat-head" onClick={() => open(r.id)}>
                     <span style={{ fontWeight: 600 }}>{r.name}</span>
                     <span className="meta">{kids.length ? `${kids.length} topics` : '›'}</span>
                   </div>
                   {kids.length > 0 && (
                     <div className="rules-subs">
                       {kids.map((c) => (
-                        <button key={c.id} className="rules-sub" onClick={() => setSelectedId(c.id)}>
+                        <button key={c.id} className="rules-sub" onClick={() => open(c.id)}>
                           {c.name}
                         </button>
                       ))}

@@ -1,5 +1,6 @@
 import { Fragment, type ReactNode } from 'react';
 import { RollableText } from './RollableText';
+import { anchorCounter } from '../lib/ruleSections';
 
 // A small, dependency-free markdown renderer for the SRD rules/conditions
 // subset: ATX headings, pipe tables, bullet/numbered lists, blockquotes,
@@ -46,6 +47,8 @@ export function Markdown({ text, lead }: { text: string; lead?: ReactNode }): Re
   const blocks: Block[] = [];
   let i = 0;
   let para: string[] = [];
+  // per-document anchors; must match ruleSections() for search jumps
+  const nextAnchor = anchorCounter();
   // `lead` (e.g. a bold "Multiattack." label) is rendered inline at the start
   // of the first paragraph; if the text opens with another block, it gets its
   // own paragraph so it's never dropped.
@@ -102,7 +105,12 @@ export function Markdown({ text, lead }: { text: string; lead?: ReactNode }): Re
       blocks.push({
         key: `h${blocks.length}`,
         node: (
-          <div className={`md-h md-h${level}`} role="heading" aria-level={level}>
+          <div
+            className={`md-h md-h${level}`}
+            role="heading"
+            aria-level={level}
+            data-anchor={nextAnchor(h[2].replace(/\s*#+\s*$/, ''))}
+          >
             {renderInline(h[2], `h${blocks.length}`)}
           </div>
         ),

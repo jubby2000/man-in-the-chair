@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../store/useStore';
 import type { CompendiumKind } from '../types';
+import { ruleSections } from '../lib/ruleSections';
 
 // Global search across the whole compendium. Opened with Cmd/Ctrl-K (or the
 // top-bar 🔍 button). Results are grouped by kind; Enter or click loads the
@@ -28,6 +29,10 @@ interface Hit {
   id: string;
   name: string;
   meta: string;
+  /** text the query is ranked against (an entry's name, or a section heading) */
+  match: string;
+  /** heading to scroll to inside the entry (rule sections only) */
+  anchor?: string;
 }
 
 const MAX_RESULTS = 50;
@@ -70,6 +75,9 @@ export function CommandPalette() {
     }
   }, [open]);
 
+  // Headings inside rule text ("Making an Attack › Grappling"), built once per compendium.
+  const sections = useMemo(() => ruleSections(compendium.rules), [compendium.rules]);
+
   const results = useMemo<Hit[]>(() => {
     const needle = q.trim().toLowerCase();
     if (!needle) return [];
@@ -78,17 +86,29 @@ export function CommandPalette() {
       const list = compendium[kind] as unknown as { id: string; name: string; [k: string]: unknown }[];
       for (const e of list) {
         if (e.name.toLowerCase().includes(needle)) {
-          out.push({ kind, id: e.id, name: e.name, meta: metaFor(kind, e) });
+          out.push({ kind, id: e.id, name: e.name, meta: metaFor(kind, e), match: e.name });
           if (out.length >= MAX_RESULTS * 2) break;
         }
       }
     }
-    // name-starts-with ranks above contains
-    out.sort((a, b) => {
-      const as = a.name.toLowerCase().startsWith(needle) ? 0 : 1;
-      const bs = b.name.toLowerCase().startsWith(needle) ? 0 : 1;
-      return as - bs || a.name.localeCompare(b.name);
-    });
+    for (const sec of sections) {
+      if (sec.heading.toLowerCase().includes(needle)) {
+        out.push({
+          kind: 'rules',
+          id: sec.ruleId,
+          anchor: sec.anchor,
+          name: `${sec.ruleName} › ${sec.heading}`,
+          meta: sec.parents.join(' › '),
+          match: sec.heading,
+        });
+      }
+    }
+    // starts-with ranks above contains; exact match first
+    const rank = (h: Hit) => {
+      const m = h.match.toLowerCase();
+      return m === needle ? 0 : m.startsWith(needle) ? 1 : 2;
+    };
+    out.sort((a, b) => rank(a) - rank(b) || a.match.localeCompare(b.match) || a.name.localeCompare(b.name));
     return out.slice(0, MAX_RESULTS);
   }, [q, compendium]);
 
@@ -97,7 +117,7 @@ export function CommandPalette() {
   }, [q]);
 
   const choose = (hit: Hit) => {
-    selectEntry(hit.kind, hit.id); // loads into Detail + surfaces the panel
+    selectEntry(hit.kind, hit.id, hit.anchor); // loads into Detail (+ scrolls to a section)
     setOpen(false);
   };
 
@@ -136,7 +156,7 @@ export function CommandPalette() {
           ) : (
             results.map((hit, i) => (
               <button
-                key={hit.kind + hit.id}
+                key={hit.kind + hit.id + (hit.anchor ?? '')}
                 className={`cmdk-row ${i === active ? 'active' : ''}`}
                 onMouseEnter={() => setActive(i)}
                 onClick={() => choose(hit)}

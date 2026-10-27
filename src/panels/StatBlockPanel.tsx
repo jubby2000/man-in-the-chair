@@ -1,7 +1,9 @@
+import { useEffect, useRef } from 'react';
 import { Panel } from '../components/Panel';
 import { EncounterAddButton } from '../components/EncounterAddButton';
 import { RollableText } from '../components/RollableText';
 import { Markdown } from '../components/Markdown';
+import { revealAnchor } from '../lib/ruleSections';
 import type {
   Ability,
   Background,
@@ -210,6 +212,24 @@ export function StatBlockPanel({ onClose }: PanelComponentProps) {
   const find = <T extends { id: string }>(arr: T[]): T | undefined =>
     selected ? arr.find((e) => e.id === selected.id) : undefined;
 
+  // Jump to a heading inside the entry (e.g. "Making an Attack › Grappling").
+  // Runs after Panel's own scroll-to-top reset (child effects run first, and
+  // the rAF waits for layout), then briefly highlights the heading.
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const anchor = selected?.anchor;
+  const seq = selected?.seq;
+  useEffect(() => {
+    if (!anchor) return;
+    let cleanup = () => {};
+    const raf = requestAnimationFrame(() => {
+      cleanup = revealAnchor(bodyRef.current, anchor);
+    });
+    return () => {
+      cancelAnimationFrame(raf);
+      cleanup();
+    };
+  }, [anchor, seq]);
+
   let body: JSX.Element | null = null;
   if (selected) {
     switch (selected.kind) {
@@ -294,7 +314,9 @@ export function StatBlockPanel({ onClose }: PanelComponentProps) {
 
   return (
     <Panel onClose={onClose} title="Detail" scrollResetKey={selected ? `${selected.kind}:${selected.id}` : null}>
-      {body ?? <div className="empty">Select anything in the Compendium to see its details here.</div>}
+      <div ref={bodyRef}>
+        {body ?? <div className="empty">Select anything in the Compendium to see its details here.</div>}
+      </div>
     </Panel>
   );
 }
