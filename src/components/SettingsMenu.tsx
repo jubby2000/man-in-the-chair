@@ -45,7 +45,13 @@ export function SettingsMenu() {
     if (!open) return;
     setTitleDraft(displayName); // sync the field each time the menu opens
     const onClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      const t = e.target as Node;
+      // Dropdowns inside this menu render their option lists in a body portal
+      // (.popover-layer). Those are part of the menu, not an outside click —
+      // treating them as outside closed the menu on mousedown, unmounting the
+      // dropdown before the option's click could fire.
+      const inPortal = t instanceof Element && !!t.closest('.popover-layer');
+      if (ref.current && !ref.current.contains(t) && !inPortal) setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setOpen(false);

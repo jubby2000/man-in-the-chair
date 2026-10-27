@@ -1118,14 +1118,17 @@ select.select {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  flex: 0 1 auto;
+  /* never shrink below its label + input (that overlapped the scratchpad);
+     the feed inside scrolls once the 55% cap is reached */
+  flex: 0 0 auto;
   max-height: 55%;
+  overflow: hidden;
   border-bottom: 1px solid var(--border);
 }
 .scratch {
   display: flex;
   flex-direction: column;
-  min-height: 120px;
+  min-height: 60px;
   flex: 1 1 auto;
 }
 .section-label {

@@ -61,6 +61,9 @@ export function Popover({
     const onDoc = (e: MouseEvent) => {
       const t = e.target as Node;
       if (popRef.current?.contains(t) || anchorRef.current?.contains(t)) return;
+      // a nested popover (e.g. a Dropdown opened inside this one) is its own
+      // portal layer; pressing inside it must not close this one
+      if (t instanceof Element && t.closest('.popover-layer')) return;
       onClose();
     };
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
