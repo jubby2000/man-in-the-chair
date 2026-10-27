@@ -18,6 +18,7 @@ import type {
 import { loadCompendium, existingNames } from '../lib/compendium';
 import { buildImportedSource, countDuplicates } from '../lib/import';
 import { db, getKV, setKV } from '../lib/db';
+import { requestPersistentStorage } from '../lib/backup';
 import { parseAndRoll, countPhysicalDice, MAX_DICE, type RollResult } from '../lib/dice';
 import { DEFAULT_PRESETS } from './presets';
 
@@ -229,6 +230,7 @@ export const useStore = create<AppState>((set, get) => ({
   activePresetId: DEFAULT_PRESETS[0].id,
 
   init: async () => {
+    void requestPersistentStorage(); // ask the browser not to evict our data
     const edition = await getKV<Edition>('edition', 'srd51');
     const savedPresets = await db.layouts.toArray();
     const presets = savedPresets.length ? savedPresets : DEFAULT_PRESETS;

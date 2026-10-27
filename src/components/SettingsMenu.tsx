@@ -3,6 +3,7 @@ import { ThemePicker } from './ThemePicker';
 import { DiceSetPicker } from './DiceSetPicker';
 import { Dropdown } from './Dropdown';
 import { useStore } from '../store/useStore';
+import { downloadBackup, restoreBackup, BackupError } from '../lib/backup';
 import type { Edition } from '../types';
 
 /** Gear menu consolidating appearance/config controls so the top bar stays lean. */
@@ -11,9 +12,33 @@ export function SettingsMenu() {
   const setEdition = useStore((s) => s.setEdition);
   const displayName = useStore((s) => s.displayName);
   const setDisplayName = useStore((s) => s.setDisplayName);
+  const confirm = useStore((s) => s.confirm);
+  const showToast = useStore((s) => s.showToast);
   const [open, setOpen] = useState(false);
   const [titleDraft, setTitleDraft] = useState(displayName);
   const ref = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const onRestoreFile = async (file: File | undefined) => {
+    if (fileRef.current) fileRef.current.value = ''; // allow re-picking the same file
+    if (!file) return;
+    const ok = await confirm({
+      title: 'Restore backup?',
+      message:
+        'This REPLACES all current data (compendium imports, party, layouts, notes, tables, settings) with the backup file, then reloads. This cannot be undone.',
+      confirmLabel: 'Restore & reload',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      const text = await file.text();
+      await restoreBackup(text);
+      showToast('Backup restored — reloading…');
+      setTimeout(() => window.location.reload(), 600);
+    } catch (e) {
+      showToast(e instanceof BackupError ? e.message : 'Restore failed — unreadable file.');
+    }
+  };
 
   // close on outside click / Escape
   useEffect(() => {
@@ -80,6 +105,28 @@ export function SettingsMenu() {
           <div className="settings-row">
             <label className="settings-label">Dice set</label>
             <DiceSetPicker />
+          </div>
+          <div className="settings-row">
+            <label className="settings-label">Data</label>
+            <div className="settings-data">
+              <button className="btn sm" onClick={() => void downloadBackup()}>
+                Download backup
+              </button>
+              <button className="btn sm" onClick={() => fileRef.current?.click()}>
+                Restore…
+              </button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="application/json,.json"
+                style={{ display: 'none' }}
+                onChange={(e) => void onRestoreFile(e.target.files?.[0])}
+              />
+            </div>
+            <div className="settings-hint">
+              Everything lives in this browser. Download a backup regularly, or before switching
+              browsers/devices — a backup file restores all your data.
+            </div>
           </div>
         </div>
       )}
