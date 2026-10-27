@@ -2256,3 +2256,8 @@ select.select {
   border-radius: var(--radius-pill);
   padding: 2px 8px;
 }
+
+/* form dropdowns: a placeholder reads as "not chosen yet" */
+.feedback-modal .dropdown-value.is-placeholder {
+  color: var(--text-faint);
+}
