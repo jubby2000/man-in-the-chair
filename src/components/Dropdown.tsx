@@ -13,7 +13,7 @@ interface DropdownProps<T extends string> {
   options: DropdownOption<T>[];
   onChange: (value: T) => void;
   title?: string;
-  /** renders the trigger label; defaults to the selected option's label */
+  /** trigger label shown while no option is selected (value matches nothing) */
   placeholder?: ReactNode;
   className?: string;
   /** align the popover to the trigger's right edge */
@@ -49,7 +49,9 @@ export function Dropdown<T extends string>({
         aria-haspopup="listbox"
         aria-expanded={open}
       >
-        <span className="dropdown-value">{placeholder ?? selected?.label ?? value}</span>
+        <span className={`dropdown-value${selected ? '' : ' is-placeholder'}`}>
+          {selected?.label ?? placeholder ?? value}
+        </span>
         <svg
           className="dropdown-caret"
           width="14"
