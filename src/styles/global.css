@@ -1822,7 +1822,6 @@ select.select {
   font-size: 12.5px;
   line-height: 1.5;
   color: var(--text-dim);
-  white-space: pre-wrap;
 }
 
 /* ---- Settings menu ---- */
@@ -2264,4 +2263,22 @@ select.select {
 /* form dropdowns: a placeholder reads as "not chosen yet" */
 .feedback-modal .dropdown-value.is-placeholder {
   color: var(--text-faint);
+}
+
+/* Markdown inside compact contexts (stat-block entries, generator items):
+   tighter paragraph spacing, no trailing gap, inherit the context's type. */
+.entry .md-p,
+.entry .md-list,
+.entry .md-table {
+  margin-bottom: 6px;
+}
+.entry > :last-child,
+.gen-item-desc > :last-child {
+  margin-bottom: 0;
+}
+.gen-item-desc .md-p,
+.gen-item-desc .md-list {
+  font-size: inherit;
+  color: inherit;
+  margin-bottom: 6px;
 }

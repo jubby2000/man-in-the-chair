@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Panel } from '../components/Panel';
 import { Dropdown } from '../components/Dropdown';
+import { Markdown } from '../components/Markdown';
 import type { PanelComponentProps, Item } from '../types';
 import { useStore } from '../store/useStore';
 import {
@@ -134,7 +135,7 @@ function ItemRow({
       </div>
       {open && (
         <div className="gen-item-desc">
-          {item.desc ? item.desc : <span className="meta">No description available.</span>}
+          {item.desc ? <Markdown text={item.desc} /> : <span className="meta">No description available.</span>}
         </div>
       )}
     </li>

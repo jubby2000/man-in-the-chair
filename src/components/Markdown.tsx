@@ -41,18 +41,46 @@ function splitCells(line: string): string[] {
     .map((c) => c.trim());
 }
 
-export function Markdown({ text }: { text: string }): ReactNode {
+export function Markdown({ text, lead }: { text: string; lead?: ReactNode }): ReactNode {
   const lines = (text ?? '').replace(/\r/g, '').split('\n');
   const blocks: Block[] = [];
   let i = 0;
   let para: string[] = [];
+  // `lead` (e.g. a bold "Multiattack." label) is rendered inline at the start
+  // of the first paragraph; if the text opens with another block, it gets its
+  // own paragraph so it's never dropped.
+  let leadPending = lead != null;
+  const takeLead = (): ReactNode => {
+    if (!leadPending) return null;
+    leadPending = false;
+    return <>{lead} </>;
+  };
 
   const flushPara = () => {
     if (para.length) {
-      const joined = para.join(' ');
-      blocks.push({ key: `p${blocks.length}`, node: <p className="md-p">{renderInline(joined, `p${blocks.length}`)}</p> });
+      const k = `p${blocks.length}`;
+      // A single newline is a real line break in this data (SRD spell lists
+      // like "At will: …" / "3/day each: …", and FightClub paragraphs), so
+      // keep each line rather than soft-joining them with spaces.
+      blocks.push({
+        key: k,
+        node: (
+          <p className="md-p">
+            {takeLead()}
+            {para.map((ln, li) => (
+              <Fragment key={li}>
+                {li > 0 && <br />}
+                {renderInline(ln, `${k}-${li}`)}
+              </Fragment>
+            ))}
+          </p>
+        ),
+      });
       para = [];
     }
+  };
+  const flushLeadAlone = () => {
+    if (leadPending) blocks.push({ key: `lead`, node: <p className="md-p">{takeLead()}</p> });
   };
 
   while (i < lines.length) {
@@ -69,6 +97,7 @@ export function Markdown({ text }: { text: string }): ReactNode {
     const h = trimmed.match(/^(#{1,6})\s+(.*)$/);
     if (h) {
       flushPara();
+      flushLeadAlone();
       const level = Math.min(6, h[1].length);
       blocks.push({
         key: `h${blocks.length}`,
@@ -82,15 +111,23 @@ export function Markdown({ text }: { text: string }): ReactNode {
       continue;
     }
 
-    // tables: a row followed by a divider row
-    if (isTableRow(line) && i + 1 < lines.length && isDivider(lines[i + 1])) {
+    // tables: a row followed by a divider row. SRD item data separates every
+    // table row with a blank line, so blank lines inside a table are skipped.
+    const nextNonBlank = (from: number) => {
+      let j = from;
+      while (j < lines.length && !lines[j].trim()) j++;
+      return j;
+    };
+    const divAt = nextNonBlank(i + 1);
+    if (isTableRow(line) && divAt < lines.length && isDivider(lines[divAt])) {
       flushPara();
+      flushLeadAlone();
       const header = splitCells(line);
-      i += 2; // skip header + divider
+      i = divAt + 1; // skip header + divider
       const rows: string[][] = [];
-      while (i < lines.length && isTableRow(lines[i]) && lines[i].trim()) {
-        rows.push(splitCells(lines[i]));
-        i++;
+      for (let j = nextNonBlank(i); j < lines.length && isTableRow(lines[j]); j = nextNonBlank(i)) {
+        rows.push(splitCells(lines[j]));
+        i = j + 1;
       }
       blocks.push({
         key: `t${blocks.length}`,
@@ -113,6 +150,7 @@ export function Markdown({ text }: { text: string }): ReactNode {
     // lists (bullet or ordered)
     if (/^\s*([*-]|\d+\.)\s+/.test(line)) {
       flushPara();
+      flushLeadAlone();
       const ordered = /^\s*\d+\.\s+/.test(line);
       const items: string[] = [];
       while (i < lines.length && /^\s*([*-]|\d+\.)\s+/.test(lines[i])) {
@@ -136,6 +174,7 @@ export function Markdown({ text }: { text: string }): ReactNode {
     // blockquote
     if (/^\s*>\s?/.test(line)) {
       flushPara();
+      flushLeadAlone();
       const quote: string[] = [];
       while (i < lines.length && /^\s*>\s?/.test(lines[i])) {
         quote.push(lines[i].replace(/^\s*>\s?/, ''));
@@ -153,6 +192,7 @@ export function Markdown({ text }: { text: string }): ReactNode {
     i++;
   }
   flushPara();
+  flushLeadAlone(); // text was empty
 
   return (
     <>

@@ -1,6 +1,7 @@
 import { Panel } from '../components/Panel';
 import { EncounterAddButton } from '../components/EncounterAddButton';
 import { RollableText } from '../components/RollableText';
+import { Markdown } from '../components/Markdown';
 import type {
   Ability,
   Background,
@@ -20,6 +21,14 @@ const mod = (score: number) => {
 };
 const ABILITY_KEYS: (keyof Ability)[] = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
 
+/** Drop a leading Markdown heading that just repeats the entry's name (SRD
+ *  rules open with "## Making an Attack", already shown as the panel's h2). */
+function withoutTitle(desc: string, name: string): string {
+  const m = (desc ?? '').match(/^\s*#{1,6}\s+(.+?)\s*(\n|$)/);
+  if (m && m[1].trim().toLowerCase() === name.trim().toLowerCase()) return desc.slice(m[0].length);
+  return desc;
+}
+
 function Entries({ title, items }: { title?: string; items: NamedEntry[] }) {
   if (!items || items.length === 0) return null;
   return (
@@ -27,7 +36,7 @@ function Entries({ title, items }: { title?: string; items: NamedEntry[] }) {
       {title && <div className="section-title">{title}</div>}
       {items.map((e, i) => (
         <div className="entry" key={i}>
-          <b>{e.name}.</b> <RollableText>{e.desc}</RollableText>
+          <Markdown lead={<b>{e.name}.</b>} text={e.desc} />
         </div>
       ))}
     </>
@@ -125,8 +134,8 @@ function ItemView({ item }: { item: Item }) {
       {line('Armor Class', item.armorClass)}
       {line('Properties', item.properties)}
       {item.desc && (
-        <div className="entry" style={{ whiteSpace: 'pre-wrap', marginTop: 8 }}>
-          <RollableText>{item.desc}</RollableText>
+        <div className="entry" style={{ marginTop: 8 }}>
+          <Markdown text={item.desc} />
         </div>
       )}
       <PubFooter publication={item.publication} />
@@ -145,7 +154,7 @@ function RaceView({ race }: { race: Race }) {
       {line('Speed', race.speed ? `${race.speed} ft` : undefined)}
       <hr className="rule" />
       <Entries title="Traits" items={race.traits} />
-      {race.desc && <div className="entry" style={{ whiteSpace: "pre-wrap" }}><RollableText>{race.desc}</RollableText></div>}
+      {race.desc && <div className="entry"><Markdown text={race.desc} /></div>}
       <PubFooter publication={race.publication} />
     </div>
   );
@@ -188,7 +197,7 @@ function FeatView({ feat }: { feat: Feat }) {
       <div className="subtitle">Feat</div>
       <hr className="rule" />
       {line('Prerequisite', feat.prerequisite)}
-      {feat.desc && <div className="entry" style={{ whiteSpace: "pre-wrap", marginTop: 8 }}><RollableText>{feat.desc}</RollableText></div>}
+      {feat.desc && <div className="entry" style={{ marginTop: 8 }}><Markdown text={feat.desc} /></div>}
       <PubFooter publication={feat.publication} />
     </div>
   );
@@ -251,10 +260,10 @@ export function StatBlockPanel({ onClose }: PanelComponentProps) {
               {sp.concentration ? line('', 'Concentration') : null}
               {sp.ritual ? line('', 'Ritual') : null}
               <hr className="rule" />
-              <div className="entry" style={{ whiteSpace: "pre-wrap" }}><RollableText>{sp.desc}</RollableText></div>
+              <div className="entry"><Markdown text={withoutTitle(sp.desc, sp.name)} /></div>
               {sp.higherLevel && (
                 <div className="entry">
-                  <b>At Higher Levels.</b> <RollableText>{sp.higherLevel}</RollableText>
+                  <Markdown lead={<b>At Higher Levels.</b>} text={sp.higherLevel} />
                 </div>
               )}
               <PubFooter publication={sp.publication} />
@@ -275,7 +284,7 @@ export function StatBlockPanel({ onClose }: PanelComponentProps) {
             <div className="statblock">
               <h2>{e.name}</h2>
               <hr className="rule" />
-              <div className="entry" style={{ whiteSpace: "pre-wrap" }}><RollableText>{e.desc}</RollableText></div>
+              <div className="entry"><Markdown text={withoutTitle(e.desc, e.name)} /></div>
             </div>
           );
         break;
