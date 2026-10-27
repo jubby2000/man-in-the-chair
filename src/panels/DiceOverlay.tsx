@@ -220,9 +220,18 @@ function DiceScene({
       body.velocity.set(-spawnX * 0.6 + rand(-2, 2), rand(-1, 1), -spawnZ * 0.6 + rand(-2, 2));
       body.angularVelocity.set(rand(-14, 14), rand(-14, 14), rand(-14, 14));
       body.quaternion.setFromEuler(rand(0, Math.PI), rand(0, Math.PI), rand(0, Math.PI));
-      body.addEventListener('collide', (e: { contact: CANNON.ContactEquation }) => {
+      body.addEventListener('collide', (e: { body: CANNON.Body; contact: CANNON.ContactEquation }) => {
         const v = Math.abs(e.contact.getImpactVelocityAlongNormal());
-        if (v > 1.5) playClack(Math.min(1, v / 14));
+        if (v <= 1.5) return;
+        const strength = Math.min(1, v / 14);
+        // walls/floor/ceiling are static (mass 0); anything with mass is a die
+        const hitDie = e.body.mass > 0;
+        if (hitDie) {
+          // a die-die contact fires on BOTH dice; let only the lower id play it
+          if (body.id < e.body.id) playClack(strength, 'die');
+        } else {
+          playClack(strength, 'table');
+        }
       });
       world.addBody(body);
       return { sides: d.sides, index, faces, body, render: d };

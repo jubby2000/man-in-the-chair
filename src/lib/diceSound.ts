@@ -126,24 +126,37 @@ function getClickBuffer(audio: AudioContext): AudioBuffer {
 
 /**
  * Play one impact. `strength` ~0..1 scales volume and brightness.
- * Two layers: a bright filtered click (plastic surface) + a short triangle
- * "thock" (wood body). Rate-limited so piles of contacts don't buzz.
+ * `surface` picks the timbre:
+ *  - 'table': die hitting the tray floor/walls -> a grain of the real recording
+ *  - 'die':   die hitting another die -> the synthesized plastic click below
+ *             (bright click + short "thock"), which reads as dice ticking
+ *             against each other rather than landing on wood.
+ * Each surface is rate-limited separately so piles of contacts don't buzz,
+ * and a die-die click never swallows a table hit (or vice versa).
  */
-export function playClack(strength = 0.5) {
+let lastDiePlay = 0;
+export function playClack(strength = 0.5, surface: 'table' | 'die' = 'table') {
   const audio = ensureContext();
   if (!audio) return;
   const now = performance.now();
-  if (now - lastPlay < 22) return;
-  lastPlay = now;
+  if (surface === 'die') {
+    if (now - lastDiePlay < 30) return;
+    lastDiePlay = now;
+  } else {
+    if (now - lastPlay < 22) return;
+    lastPlay = now;
+  }
 
   const s = Math.max(0.1, Math.min(1, strength));
-  if (sample) {
+  if (surface === 'table' && sample) {
     playGrain(audio, sample, s);
     return;
   }
+  // die-on-die clicks sit a little under the table hits in the mix
+  const level = surface === 'die' ? 0.6 : 0.9;
   const t = audio.currentTime;
   const out = audio.createGain();
-  out.gain.value = 0.9;
+  out.gain.value = level;
   out.connect(audio.destination);
 
   // --- Layer 1: click transient (plastic) ---
