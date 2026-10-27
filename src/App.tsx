@@ -16,6 +16,7 @@ import { TimerPanel } from './panels/TimerPanel';
 import { EmbedPanel } from './panels/EmbedPanel';
 import { TablesPanel } from './panels/TablesPanel';
 import { ImportDialog } from './components/ImportDialog';
+import { FeedbackDialog } from './components/FeedbackDialog';
 import { Dropdown } from './components/Dropdown';
 import { Toast } from './components/Toast';
 import { QuickRoll } from './components/QuickRoll';
@@ -76,6 +77,7 @@ export default function App() {
     const promptDialog = useStore((s) => s.prompt);
 
   const [showImport, setShowImport] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
   const initTheme = useThemeStore((s) => s.init);
   const initDiceSet = useDiceSetStore((s) => s.init);
   const width = useContainerWidth();
@@ -237,6 +239,11 @@ export default function App() {
         <button className="btn" onClick={() => setShowImport(true)}>
           Import
         </button>
+        <button className="btn icon" title="Send feedback" aria-label="Send feedback" onClick={() => setShowFeedback(true)}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+          </svg>
+        </button>
         <SettingsMenu />
       </div>
 
@@ -268,6 +275,7 @@ export default function App() {
         <DiceOverlayGate />
       </Suspense>
       {showImport && <ImportDialog onClose={() => setShowImport(false)} />}
+      {showFeedback && <FeedbackDialog onClose={() => setShowFeedback(false)} />}
       <Toast />
       <QuickRoll />
       <CommandPalette />
