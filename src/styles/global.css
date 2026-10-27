@@ -1107,22 +1107,26 @@ select.select {
 
 /* ---- Notes ---- */
 .notes-layout {
+  display: flex;
   flex-direction: column;
   height: 100%;
   min-height: 0;
 }
+/* The log is only as tall as its entries (capped, then it scrolls); the
+   scratchpad takes all remaining vertical space. */
 .session-log {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  flex: 1 1 55%;
+  flex: 0 1 auto;
+  max-height: 55%;
   border-bottom: 1px solid var(--border);
 }
 .scratch {
   display: flex;
   flex-direction: column;
-  min-height: 0;
-  flex: 1 1 45%;
+  min-height: 120px;
+  flex: 1 1 auto;
 }
 .section-label {
   font-size: 10px;
