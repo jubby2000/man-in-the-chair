@@ -1,6 +1,16 @@
-// Synthesized dice-impact sounds via the Web Audio API. No audio files.
-// Target timbre: hard plastic on wood — a sharp, short click transient plus a
-// brief woody resonance, not a soft papery rustle. Fully offline, zero download.
+// Dice-impact sounds via the Web Audio API.
+//
+// Primary path: a real recording of dice on a table (src/assets/dice-roll.mp3,
+// "dice" by freesound_community via Pixabay — Pixabay Content License, free for
+// commercial use, no attribution required). The clip contains ~10 distinct
+// impacts; we slice it into per-impact GRAINS and play one grain per physics
+// collision, picked by impact strength. That keeps the sound synced to what the
+// dice actually do instead of playing a fixed canned roll.
+//
+// Fallback: the synthesized click/thock below, used until the sample decodes
+// (or if decoding fails). The asset is bundled and precached, so it's offline.
+
+import diceSampleUrl from '../assets/dice-roll.mp3';
 
 let ctx: AudioContext | null = null;
 let muted = false;
@@ -23,7 +33,80 @@ function ensureContext(): AudioContext | null {
     ctx = new AC();
   }
   if (ctx.state === 'suspended') void ctx.resume();
+  void loadSample(ctx);
   return ctx;
+}
+
+// ---- Sampled grains ----
+
+// Impact onsets (seconds) measured from the recording's amplitude envelope,
+// bucketed by loudness. Each grain runs from just before its onset to just
+// before the next impact so grains never contain a second hit.
+const GRAINS: Record<'hard' | 'medium' | 'soft', { at: number; dur: number }[]> = {
+  hard: [
+    { at: 0.088, dur: 0.11 },
+    { at: 0.209, dur: 0.085 },
+    { at: 0.299, dur: 0.06 },
+    { at: 0.419, dur: 0.05 },
+  ],
+  medium: [
+    { at: 0.359, dur: 0.055 },
+    { at: 0.469, dur: 0.045 },
+    { at: 0.514, dur: 0.06 },
+  ],
+  soft: [
+    { at: 0.584, dur: 0.022 },
+    { at: 0.604, dur: 0.032 },
+    { at: 0.636, dur: 0.06 },
+  ],
+};
+
+let sample: AudioBuffer | null = null;
+let sampleLoading: Promise<void> | null = null;
+
+function loadSample(audio: AudioContext): Promise<void> {
+  if (sample || sampleLoading) return sampleLoading ?? Promise.resolve();
+  sampleLoading = fetch(diceSampleUrl)
+    .then((r) => r.arrayBuffer())
+    .then((buf) => audio.decodeAudioData(buf))
+    .then((decoded) => {
+      sample = decoded;
+    })
+    .catch(() => {
+      // keep the synth fallback; allow a later retry
+      sampleLoading = null;
+    });
+  return sampleLoading;
+}
+
+/** Warm the decoder ahead of the first collision (call when a roll starts). */
+export function preloadDiceSound() {
+  ensureContext();
+}
+
+let lastGrain = -1;
+function playGrain(audio: AudioContext, buffer: AudioBuffer, s: number) {
+  const bucket = s > 0.6 ? GRAINS.hard : s > 0.3 ? GRAINS.medium : GRAINS.soft;
+  // avoid repeating the exact same grain back-to-back (sounds mechanical)
+  let idx = Math.floor(Math.random() * bucket.length);
+  if (bucket.length > 1 && idx === lastGrain) idx = (idx + 1) % bucket.length;
+  lastGrain = idx;
+  const g = bucket[idx];
+
+  const t = audio.currentTime;
+  const src = audio.createBufferSource();
+  src.buffer = buffer;
+  // slight pitch/speed variation so a pile of dice doesn't sound looped
+  src.playbackRate.value = 0.9 + Math.random() * 0.2;
+  const gain = audio.createGain();
+  const peak = 0.25 + s * 0.75;
+  const dur = g.dur / src.playbackRate.value;
+  gain.gain.setValueAtTime(peak, t);
+  // short fade-out at the grain tail to avoid a click at the cut point
+  gain.gain.setValueAtTime(peak, t + dur * 0.7);
+  gain.gain.linearRampToValueAtTime(0.0001, t + dur);
+  src.connect(gain).connect(audio.destination);
+  src.start(t, g.at, g.dur);
 }
 
 // A very short noise buffer used as the "click" attack. Regenerated once.
@@ -54,6 +137,10 @@ export function playClack(strength = 0.5) {
   lastPlay = now;
 
   const s = Math.max(0.1, Math.min(1, strength));
+  if (sample) {
+    playGrain(audio, sample, s);
+    return;
+  }
   const t = audio.currentTime;
   const out = audio.createGain();
   out.gain.value = 0.9;

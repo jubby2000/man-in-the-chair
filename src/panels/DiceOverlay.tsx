@@ -6,7 +6,7 @@ import * as CANNON from 'cannon-es';
 import { useStore } from '../store/useStore';
 import { diceToRender, combineFaces, type RollResult, type RenderDie } from '../lib/dice';
 import { faceMapFor, geometryFor, readUpFace, type FaceMap } from '../lib/diceGeometry';
-import { playClack, setDiceMuted, isDiceMuted } from '../lib/diceSound';
+import { playClack, preloadDiceSound, setDiceMuted, isDiceMuted } from '../lib/diceSound';
 import { useDiceSetStore, type DiceSet } from '../theme/diceSets';
 
 const GRAVITY = -40;
@@ -203,6 +203,8 @@ function DiceScene({
     ceiling.position.set(0, 10, 0);
     world.addBody(ceiling);
 
+    // start decoding the impact sample now, before the first collision lands
+    preloadDiceSound();
     const built: DieHandle[] = specs.map((d, index) => {
       const geometry = geometryFor(d.sides);
       const faces = faceMapFor(d.sides, geometry);

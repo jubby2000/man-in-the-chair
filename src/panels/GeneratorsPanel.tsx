@@ -14,6 +14,7 @@ import {
 import {
   generateLoot,
   rollMagicItems,
+  unratedMagicCount,
   baseRarity,
   categoryOf,
   RARITY_ORDER,
@@ -153,6 +154,20 @@ function CategorySelect({ value, onChange }: { value: ItemCategory; onChange: (c
 }
 
 // ---- Loot ----
+
+// Shown under an empty result when the compendium has magic items with no
+// rarity (stale FightClub imports) — explains the cause and the fix.
+function UnratedHint({ items }: { items: Item[] }) {
+  const n = useMemo(() => unratedMagicCount(items), [items]);
+  if (!n) return null;
+  return (
+    <div className="gen-hint">
+      {n} imported magic item{n > 1 ? 's have' : ' has'} no rarity, so the generator can't use{' '}
+      {n > 1 ? 'them' : 'it'}. Remove and re-import that file to pick up rarities.
+    </div>
+  );
+}
+
 function LootTab({
   items,
   onSelect,
@@ -208,7 +223,10 @@ function LootTab({
               ))}
             </ul>
           ) : (
-            <div className="empty">No matching magic items at this tier/type in the current compendium.</div>
+            <div className="empty">
+              No matching magic items at this tier/type in the current compendium.
+              <UnratedHint items={items} />
+            </div>
           )}
           <button className="btn sm" onClick={toNotes}>
             Copy list to Notes
@@ -302,7 +320,10 @@ function MagicTab({
               ))}
             </ul>
           ) : (
-            <div className="empty">No magic items match that rarity/type in the current compendium.</div>
+            <div className="empty">
+              No magic items match that rarity/type in the current compendium.
+              <UnratedHint items={items} />
+            </div>
           )}
           <button
             className="btn sm"

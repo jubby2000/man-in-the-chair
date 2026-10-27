@@ -24,7 +24,7 @@ export default defineConfig({
       },
       workbox: {
         // SRD JSON can be large; cache everything the build emits for full offline.
-        globPatterns: ['**/*.{js,css,html,svg,png,json,woff2}'],
+        globPatterns: ['**/*.{js,css,html,svg,png,json,woff2,mp3}'],
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
       },
     }),

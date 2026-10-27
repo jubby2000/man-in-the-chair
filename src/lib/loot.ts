@@ -149,3 +149,12 @@ export function rollMagicItems(
 }
 
 export { RARITY_ORDER };
+
+/**
+ * Magic items with no usable rarity. Imports made before rarity was read from
+ * FightClub's <detail> field land here; generators can't weight them, so the
+ * UI uses this count to suggest a re-import instead of silently showing nothing.
+ */
+export function unratedMagicCount(allItems: Item[]): number {
+  return allItems.filter((i) => i.magic === true && baseRarity(i.rarity) === null).length;
+}

@@ -151,3 +151,19 @@ export function combineFaces(result: RollResult, render: RenderDie[], faces: num
   });
   return total + result.modifier;
 }
+
+export type RollMode = 'normal' | 'advantage' | 'disadvantage';
+
+/**
+ * Apply advantage/disadvantage to a notation: every SINGLE d20 term ("d20",
+ * "1d20") becomes "2d20kh1" / "2d20kl1". Multi-d20 terms ("3d20"), terms with
+ * an explicit keep rule, and non-d20 dice are left alone — so "d20+5" ->
+ * "2d20kh1+5" while "8d6" is unchanged. Returns the original string for
+ * 'normal' or when there's no single d20 to modify.
+ */
+export function applyRollMode(input: string, mode: RollMode): string {
+  if (mode === 'normal') return input;
+  const notation = input.trim().toLowerCase().replace(/\s+/g, '');
+  const keep = mode === 'advantage' ? 'kh1' : 'kl1';
+  return notation.replace(/(^|[+-])1?d20(?![\dk])/g, `$12d20${keep}`);
+}

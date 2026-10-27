@@ -188,6 +188,9 @@ function parseFightClubItem(i: Record<string, any>): Item {
     armorClass: str(i.ac) || undefined,
     properties: str(i.property) || undefined,
     magic: str(i.magic) === '1' || str(i.magic).toUpperCase() === 'YES',
+    // FightClub stores rarity (+ attunement) in <detail>, e.g.
+    // "rare (requires attunement)". baseRarity() buckets it for generators.
+    rarity: str(i.detail) || undefined,
     desc: toArray(i.text).map(str).join('\n\n'),
     publication: extractPublication(i) || undefined,
   };
