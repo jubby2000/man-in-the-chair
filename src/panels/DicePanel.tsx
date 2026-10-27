@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { Panel } from '../components/Panel';
 import type { PanelComponentProps } from '../types';
 import { useStore } from '../store/useStore';
-import { MAX_DICE, countPhysicalDice, applyRollMode, type RollMode } from '../lib/dice';
-import { RollModeToggle } from '../components/RollModeToggle';
+import { MAX_DICE, countPhysicalDice } from '../lib/dice';
+import { D20SplitButton } from '../components/D20SplitButton';
 
 const QUICK = ['d20', 'd12', 'd10', 'd8', 'd6', 'd4', 'd100', '2d6'];
 
@@ -12,10 +12,8 @@ export function DicePanel({ onClose }: PanelComponentProps) {
   const rollLog = useStore((s) => s.rollLog);
   const [input, setInput] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [mode, setMode] = useState<RollMode>('normal');
 
-  const roll = (raw: string) => {
-    const notation = applyRollMode(raw, mode);
+  const roll = (notation: string) => {
     const count = countPhysicalDice(notation);
     if (count !== null && count > MAX_DICE) {
       setError(`I can roll up to ${MAX_DICE} dice at once — that’s ${count}.`);
@@ -50,13 +48,16 @@ export function DicePanel({ onClose }: PanelComponentProps) {
           </button>
         </form>
         {error && <div style={{ color: 'var(--danger)', fontSize: 12 }}>{error}</div>}
-        <RollModeToggle value={mode} onChange={setMode} />
         <div className="quick-dice">
-          {QUICK.map((d) => (
-            <button key={d} className="quick-die" onClick={() => roll(d)}>
-              {d}
-            </button>
-          ))}
+          {QUICK.map((d) =>
+            d === 'd20' ? (
+              <D20SplitButton key={d} onRoll={roll} />
+            ) : (
+              <button key={d} className="quick-die" onClick={() => roll(d)}>
+                {d}
+              </button>
+            ),
+          )}
         </div>
         <div className="roll-log">
           {rollLog.length === 0 ? (

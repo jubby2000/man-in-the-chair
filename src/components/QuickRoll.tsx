@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../store/useStore';
-import { MAX_DICE, countPhysicalDice, applyRollMode, type RollMode } from '../lib/dice';
-import { RollModeToggle } from './RollModeToggle';
+import { MAX_DICE, countPhysicalDice } from '../lib/dice';
+import { D20SplitButton } from './D20SplitButton';
 
 // Global quick-roll: press "r" (or Ctrl/Cmd+R-free "/") anywhere to pop a small
 // dice input; type notation and Enter to roll, Esc to close. Ignores keypresses
@@ -15,7 +15,6 @@ export function QuickRoll() {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [mode, setMode] = useState<RollMode>('normal');
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -39,10 +38,7 @@ export function QuickRoll() {
   }, [open]);
 
   useEffect(() => {
-    if (open) {
-      setMode('normal'); // advantage is per-roll; never carry it over silently
-      inputRef.current?.focus();
-    }
+    if (open) inputRef.current?.focus();
   }, [open]);
 
   // auto-close the quick-roll once the dice overlay is up
@@ -53,8 +49,7 @@ export function QuickRoll() {
     }
   }, [diceOpen, open]);
 
-  const roll = (raw: string) => {
-    const notation = applyRollMode(raw, mode);
+  const roll = (notation: string) => {
     const count = countPhysicalDice(notation);
     if (count !== null && count > MAX_DICE) {
       setError(`I can roll up to ${MAX_DICE} dice at once — that’s ${count}.`);
@@ -92,15 +87,16 @@ export function QuickRoll() {
         {error && (
           <div style={{ color: 'var(--danger)', fontSize: 12, marginTop: 6 }}>{error}</div>
         )}
-        <div style={{ marginTop: 10 }}>
-          <RollModeToggle value={mode} onChange={setMode} />
-        </div>
         <div className="quick-dice" style={{ marginTop: 10 }}>
-          {QUICK.map((d) => (
-            <button key={d} className="quick-die" onClick={() => roll(d)}>
-              {d}
-            </button>
-          ))}
+          {QUICK.map((d) =>
+            d === 'd20' ? (
+              <D20SplitButton key={d} onRoll={roll} />
+            ) : (
+              <button key={d} className="quick-die" onClick={() => roll(d)}>
+                {d}
+              </button>
+            ),
+          )}
         </div>
         <div className="quickroll-hint">
           Press <kbd>R</kbd> anywhere to open · <kbd>Esc</kbd> to close

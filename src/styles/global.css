@@ -700,42 +700,44 @@ select.select {
   flex-wrap: wrap;
   gap: 5px;
 }
-/* Advantage / Normal / Disadvantage segmented toggle */
-.roll-mode {
+/* Split d20 quick button: [dis | d20 | adv] */
+.d20-split {
   display: inline-flex;
   border: 1px solid var(--border);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   overflow: hidden;
   background: var(--bg-elev-2);
 }
-.roll-mode-opt {
+.d20-split-part {
   background: transparent;
-  color: var(--text-dim);
   border: none;
-  padding: 4px 12px;
-  font-size: 12px;
+  color: var(--text-dim);
   font-weight: 600;
+  font-size: 12px;
+  padding: 5px 10px;
   cursor: pointer;
 }
-.roll-mode-opt + .roll-mode-opt {
+.d20-split-part.dis,
+.d20-split-part.adv {
+  padding: 5px 7px;
   border-left: 1px solid var(--border-soft);
 }
-.roll-mode-opt:hover {
+.d20-split-part.dis {
+  border-left: none;
+  border-right: 1px solid var(--border-soft);
+}
+.d20-split-part:hover {
   color: var(--text);
 }
-.roll-mode-opt.active.normal {
-  background: var(--accent-soft);
-  color: var(--text);
-}
-.roll-mode-opt.active.advantage {
-  background: var(--good-soft);
-  color: var(--good);
-}
-.roll-mode-opt.active.disadvantage {
+.d20-split-part.dis:hover {
   background: var(--danger-soft);
   color: var(--danger);
 }
-.roll-mode-opt:focus-visible {
+.d20-split-part.adv:hover {
+  background: var(--good-soft);
+  color: var(--good);
+}
+.d20-split-part:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
