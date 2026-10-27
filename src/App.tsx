@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, lazy, Suspense } from 'react';
 import GridLayout, { type Layout } from 'react-grid-layout';
 import { useStore } from './store/useStore';
-import { PANEL_TITLES } from './store/presets';
+import { PANEL_TITLES, placeNewPanel } from './store/presets';
 import type { GridItem, PanelType } from './types';
 import { CompendiumPanel } from './panels/CompendiumPanel';
 import { StatBlockPanel } from './panels/StatBlockPanel';
@@ -135,9 +135,7 @@ export default function App() {
   const addPanel = (panel: PanelType) => {
     if (!active) return;
     if (active.items.some((it) => it.panel === panel)) return; // one of each per preset
-    const maxY = active.items.reduce((m, it) => Math.max(m, it.y + it.h), 0);
-    const item: GridItem = { i: panel, panel, x: 0, y: maxY, w: 4, h: 8 };
-    updatePresetLayout(active.id, [...active.items, item]);
+    updatePresetLayout(active.id, [...active.items, placeNewPanel(active.items, panel)]);
   };
 
   const removePanel = (i: string) => {

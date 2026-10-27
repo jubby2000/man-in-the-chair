@@ -1,4 +1,40 @@
-import type { LayoutPreset } from '../types';
+import type { GridItem, LayoutPreset, PanelType } from '../types';
+
+export const GRID_COLS = 12;
+/** Default footprint for a newly added panel (grid units). */
+export const NEW_PANEL_SIZE = { w: 4, h: 8 };
+
+/**
+ * Find where a new w×h panel should go: the HIGHEST free spot that fits
+ * without overlapping any existing panel (leftmost on ties). Gaps near the top
+ * are used first; with no gap, this lands on the shortest column stack rather
+ * than always the first column. Scanning up to the current bottom guarantees a
+ * fit (the row just below everything is always free).
+ */
+export function findPanelSlot(
+  items: Pick<GridItem, 'x' | 'y' | 'w' | 'h'>[],
+  w: number,
+  h: number,
+  cols = GRID_COLS,
+): { x: number; y: number } {
+  const width = Math.min(w, cols);
+  const bottom = items.reduce((m, it) => Math.max(m, it.y + it.h), 0);
+  const overlaps = (x: number, y: number) =>
+    items.some((it) => x < it.x + it.w && x + width > it.x && y < it.y + it.h && y + h > it.y);
+  for (let y = 0; y <= bottom; y++) {
+    for (let x = 0; x + width <= cols; x++) {
+      if (!overlaps(x, y)) return { x, y };
+    }
+  }
+  return { x: 0, y: bottom };
+}
+
+/** A new grid item for `panel`, placed via findPanelSlot. */
+export function placeNewPanel(items: GridItem[], panel: PanelType): GridItem {
+  const { w, h } = NEW_PANEL_SIZE;
+  const { x, y } = findPanelSlot(items, w, h);
+  return { i: panel, panel, x, y, w, h };
+}
 
 // 12-column grid. Three starter presets the DM can switch between mid-session.
 export const DEFAULT_PRESETS: LayoutPreset[] = [

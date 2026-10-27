@@ -20,7 +20,7 @@ import { buildImportedSource, countDuplicates } from '../lib/import';
 import { db, getKV, setKV } from '../lib/db';
 import { requestPersistentStorage } from '../lib/backup';
 import { parseAndRoll, countPhysicalDice, MAX_DICE, type RollResult } from '../lib/dice';
-import { DEFAULT_PRESETS } from './presets';
+import { DEFAULT_PRESETS, placeNewPanel } from './presets';
 
 const EMPTY: Compendium = {
   monsters: [], spells: [], items: [], conditions: [], rules: [],
@@ -672,8 +672,7 @@ export const useStore = create<AppState>((set, get) => ({
     set((s) => {
       const active = s.presets.find((p) => p.id === s.activePresetId);
       if (!active || active.items.some((it) => it.panel === panel)) return s;
-      const maxY = active.items.reduce((m, it) => Math.max(m, it.y + it.h), 0);
-      const item: GridItem = { i: panel, panel, x: 0, y: maxY, w: 4, h: 9 };
+      const item = placeNewPanel(active.items, panel);
       const presets = s.presets.map((p) =>
         p.id === active.id ? { ...p, items: [...p.items, item] } : p,
       );
