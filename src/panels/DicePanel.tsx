@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Panel } from '../components/Panel';
 import type { PanelComponentProps } from '../types';
 import { useStore } from '../store/useStore';
-import { MAX_DICE, countPhysicalDice } from '../lib/dice';
+import { MAX_DICE, countPhysicalDice, rollLabel } from '../lib/dice';
 import { D20SplitButton } from '../components/D20SplitButton';
 
 const QUICK = ['d20', 'd12', 'd10', 'd8', 'd6', 'd4', 'd100', '2d6'];
@@ -34,7 +34,7 @@ export function DicePanel({ onClose }: PanelComponentProps) {
         <form className="dice-input-row" onSubmit={onSubmit}>
           <input
             className="input"
-            placeholder="e.g. 5d6, 2d20kh1+3"
+            placeholder="e.g. 5d6, 1d20+3"
             value={input}
             onChange={(e) => {
               setInput(e.target.value);
@@ -68,7 +68,7 @@ export function DicePanel({ onClose }: PanelComponentProps) {
             rollLog.map((r, i) => (
               <div className="line" key={r.at + '-' + i}>
                 <span style={{ color: 'var(--text-faint)' }}>
-                  {r.notation.toUpperCase()} · [{r.values.join(', ')}]
+                  {rollLabel(r.notation)} · [{r.values.join(', ')}]
                 </span>
                 <span className="total">{r.total}</span>
               </div>

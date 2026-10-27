@@ -151,3 +151,15 @@ export function combineFaces(result: RollResult, render: RenderDie[], faces: num
   });
   return total + result.modifier;
 }
+
+/**
+ * Human-readable label for a roll. Advantage/disadvantage (rolled internally as
+ * 2d20kh1 / 2d20kl1 by the split d20 button) is spelled out instead of shown as
+ * keep-notation: "2d20kl1" -> "2D20 (Disadvantage)". Anything else is just
+ * upper-cased, matching the existing readout style.
+ */
+export function rollLabel(notation: string): string {
+  const m = notation.toLowerCase().match(/^2d20k([hl])1(.*)$/);
+  if (m) return `2D20${m[2].toUpperCase()} (${m[1] === 'h' ? 'Advantage' : 'Disadvantage'})`;
+  return notation.toUpperCase();
+}

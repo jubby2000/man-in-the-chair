@@ -74,7 +74,7 @@ export function QuickRoll() {
           <input
             ref={inputRef}
             className="input"
-            placeholder="e.g. 5d6, 2d20kh1+3"
+            placeholder="e.g. 5d6, 1d20+3"
             value={input}
             onChange={(e) => {
               setInput(e.target.value);

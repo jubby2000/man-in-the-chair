@@ -4,7 +4,7 @@ import { Text } from '@react-three/drei';
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 import { useStore } from '../store/useStore';
-import { diceToRender, combineFaces, type RollResult, type RenderDie } from '../lib/dice';
+import { diceToRender, combineFaces, rollLabel, type RollResult, type RenderDie } from '../lib/dice';
 import { faceMapFor, geometryFor, readUpFace, type FaceMap } from '../lib/diceGeometry';
 import { playClack, preloadDiceSound, setDiceMuted, isDiceMuted } from '../lib/diceSound';
 import { useDiceSetStore, type DiceSet } from '../theme/diceSets';
@@ -346,7 +346,7 @@ export function DiceOverlay() {
         </Canvas>
       </div>
 
-      <div className="notation-readout">{result.notation.toUpperCase()}</div>
+      <div className="notation-readout">{rollLabel(result.notation)}</div>
       {landed ? (
         <>
           <div className="total-readout">{landed.total}</div>
