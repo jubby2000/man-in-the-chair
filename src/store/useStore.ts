@@ -25,6 +25,7 @@ import { combatantFromMonster, uniqueName } from '../lib/combatants';
 import {
   applyHit,
   applyMaxReduction,
+  effectiveMax,
   endOfTurn,
   CONCENTRATING,
   type DamageMode,
@@ -187,8 +188,11 @@ interface AppState {
   updatePartyMember: (id: string, patch: Partial<PartyMember>) => Promise<void>;
   /** Max HP reduction for a combatant; for a PC it's stored on the party member (outlasts the fight). */
   setMaxHpReduction: (combatantId: string, reduction: number) => void;
-  /** Long rest: clear every party member's max HP reduction. */
-  longRest: () => Promise<void>;
+  /**
+   * Long rest: clear every party member's max HP reduction, and bring PCs in
+   * the Initiative tracker back to full HP with no temp HP. Logged.
+   */
+  longRest: () => Promise<{ healed: number; drained: number }>;
   removePartyMember: (id: string) => Promise<void>;
 
   setActivePreset: (id: string) => void;
@@ -715,9 +719,38 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   longRest: async () => {
+    const drained = get().party.filter((m) => m.maxHpReduction).length;
+    // 1. reductions end (this also re-syncs any linked combatant's maximum)
     for (const m of get().party) {
       if (m.maxHpReduction) await get().updatePartyMember(m.id, { maxHpReduction: undefined });
     }
+    // 2. PCs in the tracker regain all HP and lose temp HP. A PC flagged dead
+    //    stays dead; resting doesn't bring anyone back.
+    const partyIds = new Set(get().party.map((m) => m.id));
+    let healed = 0;
+    set((s) => {
+      const combatants = s.combatants.map((c) => {
+        if (!c.partyId || !partyIds.has(c.partyId)) return c;
+        if (c.prompts?.some((p) => p.kind === 'death')) return c;
+        const full = effectiveMax(c);
+        if (c.currentHp !== full || c.tempHp) healed++;
+        return {
+          ...c,
+          currentHp: full,
+          tempHp: 0,
+          prompts: c.prompts?.filter((p) => p.kind !== 'death-save'),
+        };
+      });
+      const parts = [
+        healed ? `${healed} PC${healed === 1 ? '' : 's'} back to full HP` : '',
+        drained ? `max HP restored for ${drained}` : '',
+      ].filter(Boolean);
+      const text = `Long rest${parts.length ? `: ${parts.join(', ')}` : ''}`;
+      const sessionLog = [...s.sessionLog, logEntry(text, 'auto', 'rest')];
+      void setKV('sessionLog', sessionLog);
+      return { combatants, sessionLog };
+    });
+    return { healed, drained };
   },
 
   removePartyMember: async (id) => {

@@ -70,13 +70,17 @@ export function PartyPanel({ onClose }: PanelComponentProps) {
       title="Party"
       tools={
         <>
-          {party.some((m) => m.maxHpReduction) && (
+          {party.length > 0 && (
             <button
               className="btn sm"
-              title="Long rest: clear every max HP reduction (Life Drain etc.)"
-              onClick={() => {
-                void longRest();
-                showToast('Long rest: max HP restored');
+              title="Long rest: PCs in the Initiative tracker regain all HP and lose temp HP; max HP reductions end"
+              onClick={async () => {
+                const { healed, drained } = await longRest();
+                const parts = [
+                  healed ? `${healed} PC${healed === 1 ? '' : 's'} at full HP` : '',
+                  drained ? 'max HP restored' : '',
+                ].filter(Boolean);
+                showToast(parts.length ? `Long rest: ${parts.join(', ')}` : 'Long rest taken');
               }}
             >
               Long rest

@@ -11,6 +11,7 @@ const ICON: Record<NonNullable<SessionLogEntry['event']>, string> = {
   drop: '💀',
   status: '⏳',
   'combat-end': '🏁',
+  rest: '🏕️',
 };
 
 /** Icon for a log entry — manual notes get a pencil, auto events their beat icon. */
