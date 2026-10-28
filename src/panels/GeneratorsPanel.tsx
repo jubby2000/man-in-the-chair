@@ -579,7 +579,7 @@ function NpcTab({
               ⧉ Clipboard
             </button>
             <button className="btn sm" title="Add to the Initiative tracker" onClick={() => toCombat(npc)}>
-              + Combat
+              + Initiative
             </button>
           </div>
         </div>

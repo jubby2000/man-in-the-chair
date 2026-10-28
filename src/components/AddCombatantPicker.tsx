@@ -107,7 +107,7 @@ export function AddCombatantPicker({
 
   return (
     <Popover anchorRef={anchorRef} open={open} onClose={onClose} align="right">
-      <div className="add-picker" role="dialog" aria-label="Add to combat">
+      <div className="add-picker" role="dialog" aria-label="Add to Initiative">
         <input
           ref={searchRef}
           className="input"

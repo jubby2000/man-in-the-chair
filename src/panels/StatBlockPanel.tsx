@@ -71,8 +71,12 @@ function MonsterView({ monster }: { monster: Monster }) {
     <div className="statblock">
       <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
         <EncounterAddButton monster={monster} label="+ Encounter" />
-        <button className="btn sm primary" onClick={() => addMonsterToCombat(monster)}>
-          + Combat
+        <button
+          className="btn sm primary"
+          title="Add to the Initiative tracker (rolls initiative)"
+          onClick={() => addMonsterToCombat(monster)}
+        >
+          + Initiative
         </button>
       </div>
       <h2>{monster.name}</h2>

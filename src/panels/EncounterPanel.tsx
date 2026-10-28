@@ -91,8 +91,12 @@ export function EncounterPanel({ onClose }: PanelComponentProps) {
             <button className="btn sm" onClick={clearEncounter}>
               Clear
             </button>
-            <button className="btn sm primary" onClick={sendEncounterToCombat}>
-              → Combat
+            <button
+              className="btn sm primary"
+              title="Add every monster in this encounter to the Initiative tracker"
+              onClick={sendEncounterToCombat}
+            >
+              + Initiative
             </button>
           </>
         )

@@ -430,7 +430,7 @@ export const useStore = create<AppState>((set, get) => ({
     set((s) => {
       const name = uniqueName(m.name, s.combatants.map((c) => c.name));
       return {
-        toast: { id: Date.now(), message: `${name} added to combat` },
+        toast: { id: Date.now(), message: `${name} added to Initiative` },
         combatants: [...s.combatants, { ...combatantFromMonster(m, name, initiative), id: uid() }],
       };
     }),

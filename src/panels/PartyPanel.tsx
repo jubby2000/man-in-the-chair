@@ -98,8 +98,8 @@ export function PartyPanel({ onClose }: PanelComponentProps) {
                 </span>
               </span>
               <span style={{ display: 'flex', gap: 4 }}>
-                <button className="btn sm" onClick={() => toCombat(m)}>
-                  → Combat
+                <button className="btn sm" title="Add to the Initiative tracker" onClick={() => toCombat(m)}>
+                  + Initiative
                 </button>
                 <button className="btn sm ghost" onClick={() => startEdit(m)}>
                   Edit
