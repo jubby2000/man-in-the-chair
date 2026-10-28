@@ -833,6 +833,7 @@ select.select {
   color: var(--text-faint);
   text-align: center;
   min-height: 16px;
+  white-space: nowrap; /* one line in every state, so the popover never jumps */
   font-variant-numeric: tabular-nums;
 }
 .hp-pop-hint b {
@@ -2755,4 +2756,25 @@ select.select {
   grid-template-columns: 1fr 52px 52px auto;
   gap: 4px;
   padding: 0 2px;
+}
+
+/* HP popover: show which button Enter will trigger (Damage, or Heal with Shift) */
+.hp-pop-actions .btn {
+  transition: opacity 0.1s, box-shadow 0.1s;
+}
+.hp-pop-actions .btn.is-dimmed {
+  opacity: 0.4;
+}
+.hp-pop-actions .btn.danger.is-enter {
+  box-shadow: 0 0 0 2px var(--panel), 0 0 0 4px var(--danger);
+}
+.hp-pop-actions .btn.heal.is-enter {
+  background: var(--good);
+  color: var(--panel);
+  box-shadow: 0 0 0 2px var(--panel), 0 0 0 4px var(--good);
+}
+@media (prefers-reduced-motion: reduce) {
+  .hp-pop-actions .btn {
+    transition: none;
+  }
 }

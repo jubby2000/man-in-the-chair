@@ -59,6 +59,24 @@ export function InitiativePanel({ onClose }: PanelComponentProps) {
   const [hpAmount, setHpAmount] = useState('');
   const hpBtnRef = useRef<HTMLButtonElement>(null);
   const hpInputRef = useRef<HTMLInputElement>(null);
+  // While the HP popover is open, track Shift so the button Enter will trigger
+  // (Damage, or Heal with Shift) is highlighted and the other dimmed.
+  const [shiftHeld, setShiftHeld] = useState(false);
+  useEffect(() => {
+    if (!hpFor) return;
+    const sync = (e: KeyboardEvent) => setShiftHeld(e.shiftKey);
+    const release = () => setShiftHeld(false); // never stick if focus leaves mid-press
+    window.addEventListener('keydown', sync);
+    window.addEventListener('keyup', sync);
+    window.addEventListener('blur', release);
+    return () => {
+      window.removeEventListener('keydown', sync);
+      window.removeEventListener('keyup', sync);
+      window.removeEventListener('blur', release);
+      setShiftHeld(false);
+    };
+  }, [hpFor]);
+
   useEffect(() => {
     if (!hpFor) return;
     setHpAmount('');
@@ -306,7 +324,7 @@ export function InitiativePanel({ onClose }: PanelComponentProps) {
                         />
                         <div className="hp-pop-actions">
                           <button
-                            className="btn sm danger"
+                            className={`btn sm danger ${amt !== null ? (shiftHeld ? 'is-dimmed' : 'is-enter') : ''}`}
                             disabled={amt === null}
                             onClick={() => applyRow(c, 'damage')}
                             title="Damage (Enter)"
@@ -314,7 +332,7 @@ export function InitiativePanel({ onClose }: PanelComponentProps) {
                             Damage
                           </button>
                           <button
-                            className="btn sm heal"
+                            className={`btn sm heal ${amt !== null ? (shiftHeld ? 'is-enter' : 'is-dimmed') : ''}`}
                             disabled={amt === null}
                             onClick={() => applyRow(c, 'heal')}
                             title="Heal (Shift+Enter)"
@@ -335,10 +353,14 @@ export function InitiativePanel({ onClose }: PanelComponentProps) {
                             <>
                               <kbd>Enter</kbd> damage · <kbd>Shift</kbd>+<kbd>Enter</kbd> heal
                             </>
+                          ) : shiftHeld ? (
+                            <>
+                              <kbd>Enter</kbd> heal → <b>{Math.min(c.maxHp, Math.max(0, c.currentHp) + amt)}</b> HP
+                            </>
                           ) : (
                             <>
-                              Damage → <b>{applyHit(c, amt, 'damage').patch.currentHp ?? c.currentHp}</b> · Heal →{' '}
-                              <b>{Math.min(c.maxHp, Math.max(0, c.currentHp) + amt)}</b>
+                              <kbd>Enter</kbd> damage → <b>{applyHit(c, amt, 'damage').patch.currentHp ?? c.currentHp}</b> HP
+                              · <kbd title="Hold Shift to heal instead">⇧</kbd> heal
                             </>
                           )}
                         </div>
