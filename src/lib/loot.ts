@@ -99,22 +99,141 @@ function weightedPickItem(items: Item[], weights: Record<Rarity, number>): Item 
   return pick(byRarity[chosen]);
 }
 
-export interface LootResult {
-  coins: string;
-  items: Item[];
+export interface CoinPart {
+  dice: string; // "2d6"
+  mult: number; // ×100
+  unit: 'cp' | 'sp' | 'gp' | 'pp';
+  rolled: number; // dice total before the multiplier
+  amount: number; // rolled × mult
 }
 
-// Coin yields loosely by tier (DMG-ish).
-function rollCoins(tier: Tier): string {
+const COIN_TABLE: Record<Tier, { n: number; s: number; mult: number; unit: CoinPart['unit'] }[]> = {
+  minor: [
+    { n: 2, s: 6, mult: 10, unit: 'gp' },
+    { n: 3, s: 6, mult: 10, unit: 'sp' },
+  ],
+  moderate: [
+    { n: 2, s: 6, mult: 100, unit: 'gp' },
+    { n: 2, s: 6, mult: 10, unit: 'pp' },
+  ],
+  major: [
+    { n: 2, s: 6, mult: 1000, unit: 'gp' },
+    { n: 3, s: 6, mult: 100, unit: 'pp' },
+  ],
+};
+
+// Coin yields loosely by tier (DMG-ish). Returns each part so the UI can show
+// "2d6×100 gp (rolled 7)" rather than just the total.
+function rollCoins(tier: Tier): CoinPart[] {
   const d = (n: number, s: number) => Array.from({ length: n }, () => 1 + Math.floor(Math.random() * s)).reduce((a, b) => a + b, 0);
-  switch (tier) {
-    case 'minor':
-      return `${d(2, 6) * 10} gp, ${d(3, 6) * 10} sp`;
-    case 'moderate':
-      return `${d(2, 6) * 100} gp, ${d(2, 6) * 10} pp`;
-    case 'major':
-      return `${d(2, 6) * 1000} gp, ${d(3, 6) * 100} pp`;
+  return COIN_TABLE[tier].map(({ n, s, mult, unit }) => {
+    const rolled = d(n, s);
+    return { dice: `${n}d${s}`, mult, unit, rolled, amount: rolled * mult };
+  });
+}
+
+export function coinsText(parts: CoinPart[]): string {
+  return parts.map((p) => `${p.amount.toLocaleString()} ${p.unit}`).join(', ');
+}
+
+// ---- Pool transparency ----
+
+export interface PoolInfo {
+  /** items a roll can actually return */
+  total: number;
+  /** eligible items per base rarity */
+  byRarity: Partial<Record<Rarity, number>>;
+  /** distinct source ids among eligible items ('srd' or an import id) */
+  sources: string[];
+  /** when total is 0: a plain-language reason */
+  emptyReason?: string;
+}
+
+/** Source ids an item came from: 'srd', an import id, or both for merged entries ('srd+abc'). */
+function sourceIdsOf(i: Item): string[] {
+  const s = (i as { source?: string }).source ?? 'srd';
+  return s.split('+').filter(Boolean);
+}
+
+function summarize(items: Item[]): Omit<PoolInfo, 'emptyReason'> {
+  const byRarity: Partial<Record<Rarity, number>> = {};
+  const sources = new Set<string>();
+  for (const i of items) {
+    const r = baseRarity(i.rarity);
+    if (r) byRarity[r] = (byRarity[r] ?? 0) + 1;
+    for (const s of sourceIdsOf(i)) sources.add(s);
   }
+  return { total: items.length, byRarity, sources: [...sources] };
+}
+
+function categoryNoun(category: ItemCategory): string {
+  const label = ITEM_CATEGORIES.find((c) => c.key === category)?.label ?? 'items';
+  return category === 'any' ? 'magic items' : `magic ${label.toLowerCase()}`;
+}
+
+/** Why a pool came out empty, most specific cause first. */
+function emptyReasonFor(allItems: Item[], category: ItemCategory, rarityNote: string): string {
+  const inCat = allItems.filter((i) => isMagic(i) && matchesCategory(i, category));
+  const noun = categoryNoun(category);
+  if (inCat.length === 0) return `Your compendium has no ${noun}.`;
+  const rated = inCat.filter((i) => baseRarity(i.rarity) !== null);
+  if (rated.length === 0)
+    return `Your ${inCat.length} ${noun} have no rarity, so they can't be weighted. Re-import the file to pick up rarities.`;
+  return `None of your ${rated.length} ${noun} are ${rarityNote}.`;
+}
+
+/** Items a loot roll can return for this tier + category (rated, and a rarity the tier allows). */
+function lootEligible(allItems: Item[], tier: Tier, category: ItemCategory): Item[] {
+  const w = TIER_WEIGHTS[tier];
+  return allItems.filter((i) => {
+    if (!isMagic(i) || !matchesCategory(i, category)) return false;
+    const r = baseRarity(i.rarity);
+    return r !== null && w[r] > 0;
+  });
+}
+
+const TIER_RARITY_NOTE: Record<Tier, string> = {
+  minor: 'Common to Rare (what a minor hoard can hold)',
+  moderate: 'Common to Very Rare (what a moderate hoard can hold)',
+  major: 'Uncommon to Legendary (what a major hoard can hold)',
+};
+
+export function lootPool(allItems: Item[], tier: Tier, category: ItemCategory = 'any'): PoolInfo {
+  const pool = summarize(lootEligible(allItems, tier, category));
+  return pool.total
+    ? pool
+    : { ...pool, emptyReason: emptyReasonFor(allItems, category, TIER_RARITY_NOTE[tier]) };
+}
+
+export interface RarityOdds {
+  rarity: Rarity;
+  /** chance (0..1) an item roll lands on this rarity */
+  p: number;
+  /** eligible items of this rarity */
+  count: number;
+}
+
+/**
+ * Effective odds per rarity. The tier's weights only apply to rarities the
+ * pool actually has, renormalized — exactly what weightedPickItem does.
+ */
+export function lootOdds(pool: PoolInfo, tier: Tier): RarityOdds[] {
+  const w = TIER_WEIGHTS[tier];
+  const present = RARITY_ORDER.filter((r) => (pool.byRarity[r] ?? 0) > 0 && w[r] > 0);
+  const total = present.reduce((a, r) => a + w[r], 0);
+  return present.map((r) => ({ rarity: r, p: total ? w[r] / total : 0, count: pool.byRarity[r] ?? 0 }));
+}
+
+export interface LootResult {
+  coins: string;
+  coinParts: CoinPart[];
+  items: Item[];
+  /** snapshot of the pool + odds this roll used */
+  pool: PoolInfo;
+  odds: RarityOdds[];
+  tier: Tier;
+  category: ItemCategory;
+  requested: number;
 }
 
 /** Generate a loot pile: coins + a few items (magic weighted by tier). */
@@ -124,37 +243,51 @@ export function generateLoot(
   itemCount: number,
   category: ItemCategory = 'any',
 ): LootResult {
-  const magic = allItems.filter((i) => isMagic(i) && matchesCategory(i, category));
+  const eligible = lootEligible(allItems, tier, category);
   const items: Item[] = [];
   const weights = TIER_WEIGHTS[tier];
   for (let i = 0; i < itemCount; i++) {
-    const it = weightedPickItem(magic, weights);
+    const it = weightedPickItem(eligible, weights);
     if (it) items.push(it);
   }
-  return { coins: rollCoins(tier), items };
+  const pool = lootPool(allItems, tier, category);
+  const coinParts = rollCoins(tier);
+  return {
+    coins: coinsText(coinParts),
+    coinParts,
+    items,
+    pool,
+    odds: lootOdds(pool, tier),
+    tier,
+    category,
+    requested: itemCount,
+  };
 }
 
-/** Roll N real magic items of (or near) a chosen rarity + category. */
+/** Pool for the Magic Items tab: magic + category (+ exact rarity unless 'any'). */
+function magicEligible(allItems: Item[], rarity: Rarity | 'any', category: ItemCategory): Item[] {
+  let pool = allItems.filter((i) => isMagic(i) && matchesCategory(i, category));
+  if (rarity !== 'any') pool = pool.filter((i) => baseRarity(i.rarity) === rarity);
+  return pool;
+}
+
+export function magicPool(allItems: Item[], rarity: Rarity | 'any', category: ItemCategory = 'any'): PoolInfo {
+  const pool = summarize(magicEligible(allItems, rarity, category));
+  if (pool.total) return pool;
+  return { ...pool, emptyReason: emptyReasonFor(allItems, category, `rated ${rarity}`) };
+}
+
+/** Roll N real magic items of (or near) a chosen rarity + category. Uniform draw from the pool. */
 export function rollMagicItems(
   allItems: Item[],
   rarity: Rarity | 'any',
   count: number,
   category: ItemCategory = 'any',
 ): Item[] {
-  let pool = allItems.filter((i) => isMagic(i) && matchesCategory(i, category));
-  if (rarity !== 'any') pool = pool.filter((i) => baseRarity(i.rarity) === rarity);
+  const pool = magicEligible(allItems, rarity, category);
   const out: Item[] = [];
   for (let i = 0; i < count && pool.length; i++) out.push(pick(pool));
   return out;
 }
 
 export { RARITY_ORDER };
-
-/**
- * Magic items with no usable rarity. Imports made before rarity was read from
- * FightClub's <detail> field land here; generators can't weight them, so the
- * UI uses this count to suggest a re-import instead of silently showing nothing.
- */
-export function unratedMagicCount(allItems: Item[]): number {
-  return allItems.filter((i) => i.magic === true && baseRarity(i.rarity) === null).length;
-}

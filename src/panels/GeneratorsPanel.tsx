@@ -15,7 +15,8 @@ import {
 import {
   generateLoot,
   rollMagicItems,
-  unratedMagicCount,
+  lootPool,
+  magicPool,
   baseRarity,
   categoryOf,
   RARITY_ORDER,
@@ -24,6 +25,8 @@ import {
   type Rarity,
   type ItemCategory,
   type LootResult,
+  type PoolInfo,
+  type RarityOdds,
 } from '../lib/loot';
 
 type Tab = 'loot' | 'magic' | 'names' | 'npc';
@@ -51,7 +54,14 @@ export function GeneratorsPanel({ onClose }: PanelComponentProps) {
   const addCombatant = useStore((s) => s.addCombatant);
   const ensurePanel = useStore((s) => s.ensurePanel);
   const showToast = useStore((s) => s.showToast);
+  const imports = useStore((s) => s.imports);
   const [tab, setTab] = useState<Tab>('loot');
+  // source id -> display name for the pool line ("SRD + Fight Club…")
+  const sourceNames = useMemo(() => {
+    const m = new Map<string, string>([['srd', 'SRD']]);
+    for (const imp of imports) m.set(imp.id, imp.name);
+    return m;
+  }, [imports]);
 
   return (
     <Panel onClose={onClose} title="Generators" flush>
@@ -68,10 +78,10 @@ export function GeneratorsPanel({ onClose }: PanelComponentProps) {
       </div>
       <div className="gen-body">
         {tab === 'loot' && (
-          <LootTab items={items} onSelect={selectEntry} onNotes={appendNotes} onToast={showToast} />
+          <LootTab items={items} sourceNames={sourceNames} onSelect={selectEntry} onNotes={appendNotes} onToast={showToast} />
         )}
         {tab === 'magic' && (
-          <MagicTab items={items} onSelect={selectEntry} onNotes={appendNotes} onToast={showToast} />
+          <MagicTab items={items} sourceNames={sourceNames} onSelect={selectEntry} onNotes={appendNotes} onToast={showToast} />
         )}
         {tab === 'names' && <NamesTab onNotes={appendNotes} />}
         {tab === 'npc' && (
@@ -156,26 +166,96 @@ function CategorySelect({ value, onChange }: { value: ItemCategory; onChange: (c
 
 // ---- Loot ----
 
-// Shown under an empty result when the compendium has magic items with no
-// rarity (stale FightClub imports) — explains the cause and the fix.
-function UnratedHint({ items }: { items: Item[] }) {
-  const n = useMemo(() => unratedMagicCount(items), [items]);
-  if (!n) return null;
+// Live "what can this roll draw from" line under the controls. Turns into the
+// specific reason when the pool is empty, so an empty result is never a mystery.
+function PoolLine({ pool, sourceNames }: { pool: PoolInfo; sourceNames: Map<string, string> }) {
+  if (!pool.total) {
+    return (
+      <div className="gen-pool empty-pool" role="status">
+        0 eligible items — {pool.emptyReason}
+      </div>
+    );
+  }
+  const sources = pool.sources.map((id) => sourceNames.get(id) ?? 'Imported').join(' + ');
   return (
-    <div className="gen-hint">
-      {n} imported magic item{n > 1 ? 's have' : ' has'} no rarity, so the generator can't use{' '}
-      {n > 1 ? 'them' : 'it'}. Remove and re-import that file to pick up rarities.
+    <div className="gen-pool" role="status">
+      {pool.total.toLocaleString()} eligible item{pool.total === 1 ? '' : 's'} · {sources}
     </div>
+  );
+}
+
+/** Even-draw odds per rarity, plus an "Unrated" row for magic items with no rarity. */
+function evenOdds(pool: PoolInfo): OddsRow[] {
+  const rows: OddsRow[] = RARITY_ORDER.filter((r) => pool.byRarity[r]).map((r) => ({
+    label: r,
+    count: pool.byRarity[r]!,
+    p: pool.byRarity[r]! / pool.total,
+  }));
+  const unrated = pool.total - rows.reduce((a, r) => a + r.count, 0);
+  if (unrated > 0) rows.push({ label: 'Unrated', count: unrated, p: unrated / pool.total });
+  return rows;
+}
+
+const pct = (p: number) => (p > 0 && p < 0.005 ? '<1%' : `${Math.round(p * 100)}%`);
+
+type OddsRow = { label: string; p: number; count: number };
+const fromRarityOdds = (odds: RarityOdds[]): OddsRow[] => odds.map((o) => ({ label: o.rarity, p: o.p, count: o.count }));
+
+function OddsList({ odds }: { odds: OddsRow[] }) {
+  return (
+    <ul className="gen-odds">
+      {odds.map((o) => (
+        <li key={o.label}>
+          <span className="gen-odds-r">{o.label}</span>
+          <span className="gen-odds-p">{pct(o.p)}</span>
+          <span className="gen-odds-n">
+            {o.count.toLocaleString()} item{o.count === 1 ? '' : 's'}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+// Collapsed "How this was rolled" explainer, built from the result's own
+// snapshot so it describes exactly the roll on screen.
+function LootRollInfo({ r }: { r: LootResult }) {
+  return (
+    <details className="gen-howto">
+      <summary>How this was rolled</summary>
+      <div className="gen-howto-body">
+        <div>
+          <b>Coins:</b>{' '}
+          {r.coinParts.map((c, i) => (
+            <span key={i}>
+              {i > 0 && ' · '}
+              {c.dice}×{c.mult.toLocaleString()} {c.unit} (rolled {c.rolled}) = {c.amount.toLocaleString()} {c.unit}
+            </span>
+          ))}
+        </div>
+        {r.requested > 0 && (
+          <>
+            <div>
+              <b>Items:</b> {r.items.length} of {r.requested} drawn from {r.pool.total.toLocaleString()} eligible. Each
+              item rolls a rarity by these odds, then a random item of that rarity, so repeats are possible.
+            </div>
+            {r.odds.length > 0 && <OddsList odds={fromRarityOdds(r.odds)} />}
+          </>
+        )}
+      </div>
+    </details>
   );
 }
 
 function LootTab({
   items,
+  sourceNames,
   onSelect,
   onNotes,
   onToast,
 }: {
   items: Item[];
+  sourceNames: Map<string, string>;
   onSelect: (k: 'items', id: string) => void;
   onNotes: (t: string) => void;
   onToast: (m: string) => void;
@@ -184,6 +264,7 @@ function LootTab({
   const [count, setCount] = useState(3);
   const [category, setCategory] = useState<ItemCategory>('any');
   const [result, setResult] = useState<LootResult | null>(null);
+  const pool = useMemo(() => lootPool(items, tier, category), [items, tier, category]);
 
   const roll = () => setResult(generateLoot(items, tier, count, category));
   const toNotes = () => {
@@ -214,6 +295,7 @@ function LootTab({
           Roll loot
         </button>
       </div>
+      <PoolLine pool={pool} sourceNames={sourceNames} />
       {result && (
         <div className="gen-result">
           <div className="gen-coins">💰 {result.coins}</div>
@@ -224,11 +306,9 @@ function LootTab({
               ))}
             </ul>
           ) : (
-            <div className="empty">
-              No matching magic items at this tier/type in the current compendium.
-              <UnratedHint items={items} />
-            </div>
+            <div className="empty">{result.pool.emptyReason ?? 'No items were drawn.'}</div>
           )}
+          <LootRollInfo r={result} />
           <button className="btn sm" onClick={toNotes}>
             Copy list to Notes
           </button>
@@ -241,11 +321,13 @@ function LootTab({
 // ---- Magic items ----
 function MagicTab({
   items,
+  sourceNames,
   onSelect,
   onNotes,
   onToast,
 }: {
   items: Item[];
+  sourceNames: Map<string, string>;
   onSelect: (k: 'items', id: string) => void;
   onNotes: (t: string) => void;
   onToast: (m: string) => void;
@@ -255,6 +337,9 @@ function MagicTab({
   const [category, setCategory] = useState<ItemCategory>('any');
   const [count, setCount] = useState(1);
   const [real, setReal] = useState<Item[] | null>(null);
+  // snapshot of the pool the last real roll drew from (for "How this was rolled")
+  const [realPool, setRealPool] = useState<{ pool: PoolInfo; rarity: Rarity | 'any'; requested: number } | null>(null);
+  const pool = useMemo(() => magicPool(items, rarity, category), [items, rarity, category]);
   const [brew, setBrew] = useState<HomebrewItem | null>(null);
 
   // only offer rarities / categories actually present in the magic pool
@@ -268,7 +353,10 @@ function MagicTab({
   }, [items]);
 
   const roll = () => {
-    if (mode === 'real') setReal(rollMagicItems(items, rarity, count, category));
+    if (mode === 'real') {
+      setReal(rollMagicItems(items, rarity, count, category));
+      setRealPool({ pool, rarity, requested: count });
+    }
     else setBrew(generateHomebrewItem());
   };
 
@@ -311,6 +399,7 @@ function MagicTab({
           Generate
         </button>
       </div>
+      {mode === 'real' && <PoolLine pool={pool} sourceNames={sourceNames} />}
 
       {mode === 'real' && real && (
         <div className="gen-result">
@@ -321,10 +410,22 @@ function MagicTab({
               ))}
             </ul>
           ) : (
-            <div className="empty">
-              No magic items match that rarity/type in the current compendium.
-              <UnratedHint items={items} />
-            </div>
+            <div className="empty">{realPool?.pool.emptyReason ?? 'No items were drawn.'}</div>
+          )}
+          {realPool && realPool.pool.total > 0 && (
+            <details className="gen-howto">
+              <summary>How this was rolled</summary>
+              <div className="gen-howto-body">
+                <div>
+                  {real.length} of {realPool.requested} drawn evenly from {realPool.pool.total.toLocaleString()}{' '}
+                  {realPool.rarity === 'any' ? 'magic items of any rarity' : `${realPool.rarity} items`}. Every
+                  eligible item is equally likely, so repeats are possible.
+                </div>
+                {realPool.rarity === 'any' && (
+                  <OddsList odds={evenOdds(realPool.pool)} />
+                )}
+              </div>
+            </details>
           )}
           <button
             className="btn sm"
