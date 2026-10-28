@@ -36,6 +36,32 @@ export interface HitResult {
 
 export const CONCENTRATING = 'Concentrating';
 
+/**
+ * Hit point maximum after any temporary reduction (Life Drain and the like).
+ * Every "maximum" check uses this: healing caps, massive damage, display.
+ */
+export function effectiveMax(c: { maxHp: number; maxHpReduction?: number }): number {
+  return Math.max(0, c.maxHp - Math.max(0, c.maxHpReduction ?? 0));
+}
+
+/**
+ * Set a creature's max-HP reduction. Current HP can't exceed the new maximum,
+ * and a maximum reduced to 0 kills the creature outright (5e rule).
+ */
+export function applyMaxReduction(c: Combatant, reduction: number): { patch: Partial<Combatant>; log: CombatLogLine[] } {
+  const r = Math.max(0, Math.min(c.maxHp, Math.floor(reduction) || 0));
+  const max = c.maxHp - r;
+  const currentHp = Math.min(c.currentHp, max);
+  const patch: Partial<Combatant> = { maxHpReduction: r, currentHp };
+  const log: CombatLogLine[] = [];
+  const alreadyFlagged = (c.prompts ?? []).some((p) => p.kind === 'death');
+  if (max === 0 && c.maxHp > 0 && !alreadyFlagged) {
+    patch.prompts = [...(c.prompts ?? []), prompt('death', 'Dies: hit point maximum reduced to 0')];
+    log.push({ text: `${c.name} dies (hit point maximum reduced to 0)`, event: 'drop' });
+  }
+  return { patch, log };
+}
+
 /** Final damage after a save and resistance/vulnerability. */
 export function effectiveDamage(amount: number, { save = 'none', mod = 'normal' }: HitOptions = {}): number {
   let d = Math.max(0, Math.floor(amount));
@@ -59,7 +85,7 @@ export function applyHit(c: Combatant, amount: number, mode: DamageMode, opts: H
 
   if (mode === 'heal') {
     const heal = Math.max(0, Math.floor(amount));
-    const currentHp = Math.min(c.maxHp, Math.max(0, c.currentHp) + heal);
+    const currentHp = Math.min(effectiveMax(c), Math.max(0, c.currentHp) + heal);
     if (c.currentHp <= 0 && currentHp > 0) log.push({ text: `${c.name} is back up (${currentHp} HP)`, event: 'status' });
     // regaining HP ends dying, so clear any pending death-save reminders
     return {
@@ -82,13 +108,13 @@ export function applyHit(c: Combatant, amount: number, mode: DamageMode, opts: H
   if (c.isPC && toHp > 0) {
     if (startHp === 0) {
       // already dying: damage = a failed death save; massive damage = death
-      if (toHp >= c.maxHp) {
+      if (toHp >= effectiveMax(c)) {
         prompts.push(prompt('death', 'Instant death (massive damage)'));
         log.push({ text: `${c.name} is killed outright (massive damage)`, event: 'drop' });
       } else {
         prompts.push(prompt('death-save', 'Death save failure (2 on a crit)'));
       }
-    } else if (currentHp === 0 && overflow >= c.maxHp) {
+    } else if (currentHp === 0 && overflow >= effectiveMax(c)) {
       prompts.push(prompt('death', 'Instant death (massive damage)'));
       log.push({ text: `${c.name} is killed outright (massive damage)`, event: 'drop' });
     }

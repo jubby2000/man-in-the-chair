@@ -24,6 +24,7 @@ import { DEFAULT_PRESETS, placeNewPanel } from './presets';
 import { combatantFromMonster, uniqueName } from '../lib/combatants';
 import {
   applyHit,
+  applyMaxReduction,
   endOfTurn,
   CONCENTRATING,
   type DamageMode,
@@ -184,6 +185,10 @@ interface AppState {
 
   addPartyMember: (p: Omit<PartyMember, 'id'>) => Promise<void>;
   updatePartyMember: (id: string, patch: Partial<PartyMember>) => Promise<void>;
+  /** Max HP reduction for a combatant; for a PC it's stored on the party member (outlasts the fight). */
+  setMaxHpReduction: (combatantId: string, reduction: number) => void;
+  /** Long rest: clear every party member's max HP reduction. */
+  longRest: () => Promise<void>;
   removePartyMember: (id: string) => Promise<void>;
 
   setActivePreset: (id: string) => void;
@@ -665,17 +670,54 @@ export const useStore = create<AppState>((set, get) => ({
     if (!member) return;
     const updated = { ...member, ...patch };
     await db.party.put(updated);
-    set((s) => ({
-      party: s.party.map((m) => (m.id === id ? updated : m)),
-      // keep any linked combatant in sync: AC/name follow directly; maxHp shifts
-      // currentHp by its delta so mid-fight damage is preserved, never clobbered.
-      combatants: s.combatants.map((c) => {
+    set((s) => {
+      const log: CombatLogLine[] = [];
+      const combatants = s.combatants.map((c) => {
         if (c.partyId !== id) return c;
+        // keep any linked combatant in sync: AC/name follow directly; maxHp shifts
+        // currentHp by its delta so mid-fight damage is preserved, never clobbered.
         const maxDelta = updated.maxHp - c.maxHp;
-        const currentHp = Math.max(0, Math.min(c.currentHp + maxDelta, updated.maxHp));
-        return { ...c, name: updated.name, ac: updated.ac, maxHp: updated.maxHp, currentHp };
-      }),
-    }));
+        const synced = {
+          ...c,
+          name: updated.name,
+          ac: updated.ac,
+          maxHp: updated.maxHp,
+          currentHp: Math.max(0, c.currentHp + maxDelta),
+        };
+        // then apply the (possibly changed) max HP reduction: clamps current HP
+        // to the reduced maximum and flags death at a maximum of 0
+        const r = applyMaxReduction(synced, updated.maxHpReduction ?? 0);
+        if ((updated.maxHpReduction ?? 0) !== (c.maxHpReduction ?? 0)) log.push(...r.log);
+        return { ...synced, ...r.patch };
+      });
+      const sessionLog = log.length ? [...s.sessionLog, ...log.map((l) => logEntry(l.text, 'auto', l.event))] : s.sessionLog;
+      if (log.length) void setKV('sessionLog', sessionLog);
+      return { party: s.party.map((m) => (m.id === id ? updated : m)), combatants, sessionLog };
+    });
+  },
+
+  setMaxHpReduction: (combatantId, reduction) => {
+    const c = get().combatants.find((x) => x.id === combatantId);
+    if (!c) return;
+    if (c.partyId && get().party.some((m) => m.id === c.partyId)) {
+      // PCs: store on the party member so it carries into the next fight
+      void get().updatePartyMember(c.partyId, { maxHpReduction: Math.max(0, reduction) || undefined });
+      return;
+    }
+    set((s) => {
+      const r = applyMaxReduction(c, reduction);
+      const combatants = s.combatants.map((x) => (x.id === combatantId ? { ...x, ...r.patch } : x));
+      if (!r.log.length) return { combatants };
+      const sessionLog = [...s.sessionLog, ...r.log.map((l) => logEntry(l.text, 'auto', l.event))];
+      void setKV('sessionLog', sessionLog);
+      return { combatants, sessionLog };
+    });
+  },
+
+  longRest: async () => {
+    for (const m of get().party) {
+      if (m.maxHpReduction) await get().updatePartyMember(m.id, { maxHpReduction: undefined });
+    }
   },
 
   removePartyMember: async (id) => {

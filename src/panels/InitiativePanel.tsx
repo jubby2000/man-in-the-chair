@@ -4,7 +4,7 @@ import { Popover } from '../components/Popover';
 import { AddCombatantPicker } from '../components/AddCombatantPicker';
 import type { Combatant, PanelComponentProps } from '../types';
 import { useStore } from '../store/useStore';
-import { CONCENTRATING, applyHit, effectiveDamage, type DamageMod, type SaveResult } from '../lib/combat';
+import { CONCENTRATING, applyHit, effectiveDamage, effectiveMax, type DamageMod, type SaveResult } from '../lib/combat';
 
 const CONDITIONS = [
   'Blinded',
@@ -45,6 +45,7 @@ export function InitiativePanel({ onClose }: PanelComponentProps) {
   const selectMonster = useStore((s) => s.selectMonster);
   const applyHits = useStore((s) => s.applyHits);
   const resolveCombatPrompt = useStore((s) => s.resolveCombatPrompt);
+  const setMaxHpReduction = useStore((s) => s.setMaxHpReduction);
 
   const [condFor, setCondFor] = useState<string | null>(null);
   const [condRounds, setCondRounds] = useState('');
@@ -246,7 +247,9 @@ export function InitiativePanel({ onClose }: PanelComponentProps) {
         <div className="empty">No combatants. Add monsters from the Compendium or send an encounter here.</div>
       ) : (
         combatants.map((c, i) => {
-          const pct = c.maxHp ? Math.max(0, Math.min(100, (c.currentHp / c.maxHp) * 100)) : 0;
+          const max = effectiveMax(c);
+          const drained = c.maxHpReduction ?? 0;
+          const pct = max ? Math.max(0, Math.min(100, (c.currentHp / max) * 100)) : 0;
           const barColor = pct > 50 ? 'var(--good)' : pct > 25 ? 'var(--warn)' : 'var(--danger)';
           const amt = hpFor === c.id ? parseAmount(hpAmount) : null;
           return (
@@ -290,12 +293,17 @@ export function InitiativePanel({ onClose }: PanelComponentProps) {
                       type="button"
                       className={`hp-pill ${hpFor === c.id ? 'open' : ''}`}
                       aria-expanded={hpFor === c.id}
-                      aria-label={`${c.name}: ${c.currentHp} of ${c.maxHp} HP${c.tempHp ? `, ${c.tempHp} temporary` : ''}. Damage or heal`}
+                      aria-label={`${c.name}: ${c.currentHp} of ${max} HP${drained ? ` (maximum reduced by ${drained})` : ''}${c.tempHp ? `, ${c.tempHp} temporary` : ''}. Damage or heal`}
                       title="Damage, heal or add temp HP"
                       onClick={() => setHpFor(hpFor === c.id ? null : c.id)}
                     >
                       <b>{c.currentHp}</b>
-                      <span className="hp-max">/ {c.maxHp}</span>
+                      <span className="hp-max">/ {max}</span>
+                    {drained > 0 && (
+                      <span className="hp-drained" title={`Maximum reduced by ${drained} (normally ${c.maxHp})`}>
+                        −{drained}
+                      </span>
+                    )}
                       {c.tempHp > 0 && <span className="hp-temp">+{c.tempHp}</span>}
                     </button>
                     {hpFor === c.id && (
@@ -304,8 +312,19 @@ export function InitiativePanel({ onClose }: PanelComponentProps) {
                         <div className="hp-pop-head">
                           <span className="hp-pop-name">{c.name}</span>
                           <span className="hp-pop-now">
-                            {c.currentHp} / {c.maxHp}
-                            {c.tempHp > 0 && <span className="hp-temp"> +{c.tempHp} temp</span>}
+                            {c.currentHp} / {max}
+                            {drained > 0 && <span className="hp-drained"> −{drained} max</span>}
+                            {c.tempHp > 0 && (
+                              <button
+                                type="button"
+                                className="hp-temp-clear"
+                                title="Clear temporary HP"
+                                aria-label={`Clear ${c.name}'s ${c.tempHp} temporary HP`}
+                                onClick={() => updateCombatant(c.id, { tempHp: 0 })}
+                              >
+                                +{c.tempHp} temp ✕
+                              </button>
+                            )}
                           </span>
                         </div>
                         <input
@@ -355,7 +374,7 @@ export function InitiativePanel({ onClose }: PanelComponentProps) {
                             </>
                           ) : shiftHeld ? (
                             <>
-                              <kbd>Enter</kbd> heal → <b>{Math.min(c.maxHp, Math.max(0, c.currentHp) + amt)}</b> HP
+                              <kbd>Enter</kbd> heal → <b>{Math.min(max, Math.max(0, c.currentHp) + amt)}</b> HP
                             </>
                           ) : (
                             <>
@@ -375,11 +394,23 @@ export function InitiativePanel({ onClose }: PanelComponentProps) {
                               onChange={(e) => updateCombatant(c.id, { currentHp: parseInt(e.target.value, 10) || 0 })}
                             />
                           </label>
-                          {c.tempHp > 0 && (
-                            <button className="btn sm ghost" onClick={() => updateCombatant(c.id, { tempHp: 0 })}>
-                              Clear temp
-                            </button>
-                          )}
+                          <label
+                            title={
+                              c.partyId
+                                ? 'Max HP reduction (Life Drain etc.). Saved on the party member until a long rest.'
+                                : 'Max HP reduction (Life Drain etc.)'
+                            }
+                          >
+                            Max −
+                            <input
+                              className="amt-input"
+                              inputMode="numeric"
+                              placeholder="0"
+                              aria-label={`Reduce ${c.name}'s maximum HP by`}
+                              value={drained || ''}
+                              onChange={(e) => setMaxHpReduction(c.id, parseInt(e.target.value.replace(/[^0-9]/g, ''), 10) || 0)}
+                            />
+                          </label>
                         </div>
                       </div>
                     </Popover>

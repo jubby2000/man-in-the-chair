@@ -3,6 +3,7 @@ import { Popover } from './Popover';
 import { useStore } from '../store/useStore';
 import { combatantFromMonster, combatantFromParty, customCombatant, uniqueName } from '../lib/combatants';
 import type { Monster } from '../types';
+import { effectiveMax } from '../lib/combat';
 
 const MAX_MONSTERS = 30;
 
@@ -143,7 +144,7 @@ export function AddCombatantPicker({
                   return (
                     <button key={p.id} className="add-picker-row" disabled={added} onClick={() => addPartyMember(p.id)}>
                       <span>{p.name}</span>
-                      <span className="meta">{added ? 'in combat' : `AC ${p.ac} · ${p.maxHp} HP`}</span>
+                      <span className="meta">{added ? 'in combat' : `AC ${p.ac} · ${effectiveMax(p)} HP${p.maxHpReduction ? ` (−${p.maxHpReduction})` : ''}`}</span>
                     </button>
                   );
                 })

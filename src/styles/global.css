@@ -2778,3 +2778,41 @@ select.select {
     transition: none;
   }
 }
+
+/* Max HP reduction (Life Drain etc.): shown wherever max HP is */
+.hp-drained {
+  color: var(--magenta);
+  font-weight: 600;
+}
+.hp-temp-clear,
+.drain-chip {
+  font: inherit;
+  font-size: 11px;
+  padding: 0 6px;
+  margin-left: 4px;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.hp-temp-clear {
+  border: 1px solid var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-2);
+}
+.drain-chip {
+  border: 1px solid var(--magenta);
+  background: var(--magenta-soft);
+  color: var(--magenta);
+}
+.hp-temp-clear:focus-visible,
+.drain-chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* small number fields (amounts, Set HP, Max −) use the theme focus ring */
+.amt-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}

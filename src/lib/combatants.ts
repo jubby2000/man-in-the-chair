@@ -3,6 +3,7 @@
 // encounter) behaves the same: monsters roll initiative, names stay unique.
 
 import type { Combatant, Monster, PartyMember } from '../types';
+import { effectiveMax } from './combat';
 
 type NewCombatant = Omit<Combatant, 'id'>;
 
@@ -47,7 +48,9 @@ export function combatantFromParty(p: PartyMember): NewCombatant {
     initiative: 0,
     ac: p.ac,
     maxHp: p.maxHp,
-    currentHp: p.maxHp,
+    // a drained PC enters at their reduced maximum
+    currentHp: effectiveMax(p),
+    maxHpReduction: p.maxHpReduction || undefined,
     tempHp: 0,
     conditions: [],
     isPC: true,

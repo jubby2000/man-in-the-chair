@@ -205,6 +205,8 @@ export interface Combatant {
   notes?: string;
   /** rounds remaining per timed condition (absent = lasts until removed) */
   condRounds?: Record<string, number>;
+  /** temporary reduction to max HP; for PCs this mirrors the party member's */
+  maxHpReduction?: number;
   /** pending reminders shown on the row (concentration save, death save…) */
   prompts?: CombatPrompt[];
 }
@@ -247,6 +249,8 @@ export interface PartyMember {
   /** legacy/manual override — if set, shown instead of the derived passive Perception */
   passivePerception?: number;
   notes?: string;
+  /** temporary reduction to max HP (Life Drain etc.); cleared on a long rest */
+  maxHpReduction?: number;
 }
 
 // ---- Random tables ----

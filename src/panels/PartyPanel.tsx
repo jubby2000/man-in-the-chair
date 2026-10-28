@@ -4,6 +4,8 @@ import { Dropdown } from '../components/Dropdown';
 import type { PanelComponentProps, PartyMember, Ability } from '../types';
 import { useStore } from '../store/useStore';
 import { ABILITY_KEYS, ABILITY_LABEL, derivePC, fmt } from '../lib/pc';
+import { combatantFromParty } from '../lib/combatants';
+import { effectiveMax } from '../lib/combat';
 
 const BLANK_ABILITIES: Ability = { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 };
 
@@ -22,6 +24,7 @@ export function PartyPanel({ onClose }: PanelComponentProps) {
   const addPartyMember = useStore((s) => s.addPartyMember);
   const updatePartyMember = useStore((s) => s.updatePartyMember);
   const removePartyMember = useStore((s) => s.removePartyMember);
+  const longRest = useStore((s) => s.longRest);
   const addCombatant = useStore((s) => s.addCombatant);
   const ensurePanel = useStore((s) => s.ensurePanel);
   const showToast = useStore((s) => s.showToast);
@@ -57,17 +60,7 @@ export function PartyPanel({ onClose }: PanelComponentProps) {
 
   const toCombat = (m: PartyMember) => {
     ensurePanel('initiative');
-    addCombatant({
-      name: m.name,
-      initiative: 0,
-      ac: m.ac,
-      maxHp: m.maxHp,
-      currentHp: m.maxHp,
-      tempHp: 0,
-      conditions: [],
-      isPC: true,
-      partyId: m.id,
-    });
+    addCombatant(combatantFromParty(m)); // enters at the reduced max if drained
     showToast(`${m.name} added to the Initiative tracker`);
   };
 
@@ -76,9 +69,23 @@ export function PartyPanel({ onClose }: PanelComponentProps) {
       onClose={onClose}
       title="Party"
       tools={
-        <button className="btn sm primary" onClick={startNew}>
-          + PC
-        </button>
+        <>
+          {party.some((m) => m.maxHpReduction) && (
+            <button
+              className="btn sm"
+              title="Long rest: clear every max HP reduction (Life Drain etc.)"
+              onClick={() => {
+                void longRest();
+                showToast('Long rest: max HP restored');
+              }}
+            >
+              Long rest
+            </button>
+          )}
+          <button className="btn sm primary" onClick={startNew}>
+            + PC
+          </button>
+        </>
       }
     >
       {party.length === 0 && !editing && (
@@ -111,7 +118,20 @@ export function PartyPanel({ onClose }: PanelComponentProps) {
             </div>
             <div className="party-stats">
               <span>AC <b>{m.ac}</b></span>
-              <span>HP <b>{m.maxHp}</b></span>
+              <span>
+                HP <b>{effectiveMax(m)}</b>
+                {m.maxHpReduction ? (
+                  <button
+                    type="button"
+                    className="drain-chip"
+                    title={`Max HP reduced by ${m.maxHpReduction} (normally ${m.maxHp}). Click to clear.`}
+                    aria-label={`Clear ${m.name}'s max HP reduction of ${m.maxHpReduction}`}
+                    onClick={() => void updatePartyMember(m.id, { maxHpReduction: undefined })}
+                  >
+                    −{m.maxHpReduction} max ✕
+                  </button>
+                ) : null}
+              </span>
               {d && <span>PP <b>{d.passivePerception}</b></span>}
               {d && <span>PInsight <b>{d.passiveInsight}</b></span>}
               {d && <span>PInvest <b>{d.passiveInvestigation}</b></span>}
