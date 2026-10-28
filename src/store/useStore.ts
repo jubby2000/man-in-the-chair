@@ -21,6 +21,7 @@ import { db, getKV, setKV } from '../lib/db';
 import { requestPersistentStorage } from '../lib/backup';
 import { parseAndRoll, countPhysicalDice, MAX_DICE, type RollResult } from '../lib/dice';
 import { DEFAULT_PRESETS, placeNewPanel } from './presets';
+import { combatantFromMonster, uniqueName } from '../lib/combatants';
 import {
   applyHit,
   endOfTurn,
@@ -426,24 +427,13 @@ export const useStore = create<AppState>((set, get) => ({
   addCombatant: (c) => set((s) => ({ combatants: [...s.combatants, { ...c, id: uid() }] })),
 
   addMonsterToCombat: (m, initiative) =>
-    set((s) => ({
-      toast: { id: Date.now(), message: `${m.name} added to combat` },
-      combatants: [
-        ...s.combatants,
-        {
-          id: uid(),
-          name: m.name,
-          initiative: initiative ?? 0,
-          ac: parseInt(m.ac, 10) || 10,
-          maxHp: m.hp,
-          currentHp: m.hp,
-          tempHp: 0,
-          conditions: [],
-          isPC: false,
-          monsterId: m.id,
-        },
-      ],
-    })),
+    set((s) => {
+      const name = uniqueName(m.name, s.combatants.map((c) => c.name));
+      return {
+        toast: { id: Date.now(), message: `${name} added to combat` },
+        combatants: [...s.combatants, { ...combatantFromMonster(m, name, initiative), id: uid() }],
+      };
+    }),
 
   updateCombatant: (id, patch) =>
     set((s) => {
@@ -630,17 +620,10 @@ export const useStore = create<AppState>((set, get) => ({
       const m = byId.get(entry.monsterId);
       if (!m) continue;
       for (let n = 1; n <= entry.count; n++) {
-        get().addCombatant({
-          name: entry.count > 1 ? `${m.name} ${n}` : m.name,
-          initiative: 0,
-          ac: parseInt(m.ac, 10) || 10,
-          maxHp: m.hp,
-          currentHp: m.hp,
-          tempHp: 0,
-          conditions: [],
-          isPC: false,
-          monsterId: m.id,
-        });
+        const taken = get().combatants.map((c) => c.name);
+        // a group of 3 goblins becomes "Goblin 1/2/3"; a lone one stays "Goblin"
+        const base = entry.count > 1 ? `${m.name} ${n}` : m.name;
+        get().addCombatant(combatantFromMonster(m, uniqueName(base, taken)));
       }
     }
   },

@@ -1,14 +1,27 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Panel } from '../components/Panel';
 import { Popover } from '../components/Popover';
+import { AddCombatantPicker } from '../components/AddCombatantPicker';
 import type { Combatant, PanelComponentProps } from '../types';
 import { useStore } from '../store/useStore';
 import { CONCENTRATING, effectiveDamage, type DamageMod, type SaveResult } from '../lib/combat';
 
 const CONDITIONS = [
-  'Blinded', 'Charmed', 'Deafened', 'Frightened', 'Grappled', 'Incapacitated',
-  'Invisible', 'Paralyzed', 'Petrified', 'Poisoned', 'Prone', 'Restrained',
-  'Stunned', 'Unconscious', CONCENTRATING,
+  'Blinded',
+  'Charmed',
+  'Deafened',
+  'Frightened',
+  'Grappled',
+  'Incapacitated',
+  'Invisible',
+  'Paralyzed',
+  'Petrified',
+  'Poisoned',
+  'Prone',
+  'Restrained',
+  'Stunned',
+  'Unconscious',
+  CONCENTRATING,
 ];
 
 type TargetOpts = { save: SaveResult; mod: DamageMod };
@@ -29,7 +42,6 @@ export function InitiativePanel({ onClose }: PanelComponentProps) {
   const sortInitiative = useStore((s) => s.sortInitiative);
   const nextTurn = useStore((s) => s.nextTurn);
   const resetCombat = useStore((s) => s.resetCombat);
-  const addCombatant = useStore((s) => s.addCombatant);
   const selectMonster = useStore((s) => s.selectMonster);
   const applyHits = useStore((s) => s.applyHits);
   const resolveCombatPrompt = useStore((s) => s.resolveCombatPrompt);
@@ -38,27 +50,28 @@ export function InitiativePanel({ onClose }: PanelComponentProps) {
   const [condRounds, setCondRounds] = useState('');
   const condBtnRef = useRef<HTMLButtonElement>(null);
 
-  // per-row amount fields
-  const [amounts, setAmounts] = useState<Record<string, string>>({});
+  // "+ Add" picker
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const addBtnRef = useRef<HTMLButtonElement>(null);
+
+  // HP popover: one open at a time, anchored to that row's HP pill
+  const [hpFor, setHpFor] = useState<string | null>(null);
+  const [hpAmount, setHpAmount] = useState('');
+  const hpBtnRef = useRef<HTMLButtonElement>(null);
+  const hpInputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (!hpFor) return;
+    setHpAmount('');
+    const t = window.setTimeout(() => hpInputRef.current?.focus(), 0);
+    return () => window.clearTimeout(t);
+  }, [hpFor]);
   // multi-target selection: id -> that target's save/resistance options
   const [selected, setSelected] = useState<Record<string, TargetOpts>>({});
   const [groupAmount, setGroupAmount] = useState('');
   const selectedIds = combatants.filter((c) => selected[c.id]).map((c) => c.id);
 
-  const addBlank = () =>
-    addCombatant({
-      name: 'New Combatant',
-      initiative: 0,
-      ac: 10,
-      maxHp: 10,
-      currentHp: 10,
-      tempHp: 0,
-      conditions: [],
-      isPC: false,
-    });
-
   const applyRow = (c: Combatant, mode: 'damage' | 'heal' | 'temp') => {
-    const amt = parseAmount(amounts[c.id] ?? '');
+    const amt = parseAmount(hpAmount);
     if (amt === null) return;
     if (mode === 'temp') {
       // temporary HP doesn't stack: keep whichever is higher
@@ -66,7 +79,7 @@ export function InitiativePanel({ onClose }: PanelComponentProps) {
     } else {
       applyHits([{ id: c.id }], amt, mode);
     }
-    setAmounts((a) => ({ ...a, [c.id]: '' }));
+    setHpFor(null);
   };
 
   const toggleSelected = (id: string) =>
@@ -84,7 +97,10 @@ export function InitiativePanel({ onClose }: PanelComponentProps) {
     const amt = parseAmount(groupAmount);
     if (amt === null || selectedIds.length === 0) return;
     applyHits(
-      selectedIds.map((id) => ({ id, ...(mode === 'damage' ? selected[id] : DEFAULT_OPTS) })),
+      selectedIds.map((id) => ({
+        id,
+        ...(mode === 'damage' ? selected[id] : DEFAULT_OPTS),
+      })),
       amt,
       mode,
     );
@@ -101,9 +117,15 @@ export function InitiativePanel({ onClose }: PanelComponentProps) {
       flush
       tools={
         <>
-          <button className="btn sm" onClick={addBlank}>
+          <button
+            ref={addBtnRef}
+            className={`btn sm ${pickerOpen ? 'primary' : ''}`}
+            aria-expanded={pickerOpen}
+            onClick={() => setPickerOpen((o) => !o)}
+          >
             + Add
           </button>
+          <AddCombatantPicker anchorRef={addBtnRef} open={pickerOpen} onClose={() => setPickerOpen(false)} />
           <button className="btn sm" onClick={sortInitiative}>
             Sort
           </button>
@@ -156,7 +178,11 @@ export function InitiativePanel({ onClose }: PanelComponentProps) {
                     className={`hit-toggle ${o.save === 'half' ? 'on' : ''}`}
                     aria-pressed={o.save === 'half'}
                     title="Made the save: takes half"
-                    onClick={() => setTargetOpt(id, { save: o.save === 'half' ? 'none' : 'half' })}
+                    onClick={() =>
+                      setTargetOpt(id, {
+                        save: o.save === 'half' ? 'none' : 'half',
+                      })
+                    }
                   >
                     Saved ½
                   </button>
@@ -165,7 +191,11 @@ export function InitiativePanel({ onClose }: PanelComponentProps) {
                     className={`hit-toggle ${o.mod === 'resist' ? 'on' : ''}`}
                     aria-pressed={o.mod === 'resist'}
                     title="Resistant: takes half"
-                    onClick={() => setTargetOpt(id, { mod: o.mod === 'resist' ? 'normal' : 'resist' })}
+                    onClick={() =>
+                      setTargetOpt(id, {
+                        mod: o.mod === 'resist' ? 'normal' : 'resist',
+                      })
+                    }
                   >
                     Resist
                   </button>
@@ -174,7 +204,11 @@ export function InitiativePanel({ onClose }: PanelComponentProps) {
                     className={`hit-toggle ${o.mod === 'vuln' ? 'on' : ''}`}
                     aria-pressed={o.mod === 'vuln'}
                     title="Vulnerable: takes double"
-                    onClick={() => setTargetOpt(id, { mod: o.mod === 'vuln' ? 'normal' : 'vuln' })}
+                    onClick={() =>
+                      setTargetOpt(id, {
+                        mod: o.mod === 'vuln' ? 'normal' : 'vuln',
+                      })
+                    }
                   >
                     Vuln
                   </button>
@@ -191,14 +225,12 @@ export function InitiativePanel({ onClose }: PanelComponentProps) {
       )}
 
       {combatants.length === 0 ? (
-        <div className="empty">
-          No combatants. Add monsters from the Compendium or send an encounter here.
-        </div>
+        <div className="empty">No combatants. Add monsters from the Compendium or send an encounter here.</div>
       ) : (
         combatants.map((c, i) => {
           const pct = c.maxHp ? Math.max(0, Math.min(100, (c.currentHp / c.maxHp) * 100)) : 0;
           const barColor = pct > 50 ? 'var(--good)' : pct > 25 ? 'var(--warn)' : 'var(--danger)';
-          const amt = parseAmount(amounts[c.id] ?? '');
+          const amt = hpFor === c.id ? parseAmount(hpAmount) : null;
           return (
             <div
               key={c.id}
@@ -217,61 +249,94 @@ export function InitiativePanel({ onClose }: PanelComponentProps) {
                 aria-label={`${c.name} initiative`}
                 value={c.initiative}
                 onChange={(e) =>
-                  updateCombatant(c.id, { initiative: parseInt(e.target.value, 10) || 0 })
+                  updateCombatant(c.id, {
+                    initiative: parseInt(e.target.value, 10) || 0,
+                  })
                 }
               />
-              <div>
-                <div
-                  className="cname"
-                  style={{ cursor: c.monsterId ? 'pointer' : 'default' }}
-                  onClick={() => c.monsterId && selectMonster(c.monsterId)}
-                >
-                  {c.name}
-                  <span className="meta" style={{ marginLeft: 6 }}>
-                    AC {c.ac}
-                  </span>
-                </div>
-                <div className="hp-track">
-                  <input
-                    aria-label={`${c.name} current HP`}
-                    value={c.currentHp}
-                    onChange={(e) =>
-                      updateCombatant(c.id, { currentHp: parseInt(e.target.value, 10) || 0 })
-                    }
-                  />
-                  <span>/ {c.maxHp}</span>
-                  {c.tempHp > 0 && (
+              <div className="cbody">
+                <div className="cline">
+                  <div
+                    className="cname"
+                    style={{ cursor: c.monsterId ? 'pointer' : 'default' }}
+                    onClick={() => c.monsterId && selectMonster(c.monsterId)}
+                  >
+                    {c.name}
+                    <span className="meta" style={{ marginLeft: 6 }}>
+                      AC {c.ac}
+                    </span>
+                  </div>
+                  <div className="hp-track">
                     <button
+                      ref={hpFor === c.id ? hpBtnRef : undefined}
                       type="button"
-                      className="temp-badge"
-                      title="Temporary HP (absorbs damage first). Click to clear."
-                      onClick={() => updateCombatant(c.id, { tempHp: 0 })}
+                      className={`hp-pill ${hpFor === c.id ? 'open' : ''}`}
+                      aria-expanded={hpFor === c.id}
+                      aria-label={`${c.name}: ${c.currentHp} of ${c.maxHp} HP${c.tempHp ? `, ${c.tempHp} temporary` : ''}. Damage or heal`}
+                      title="Damage, heal or add temp HP"
+                      onClick={() => setHpFor(hpFor === c.id ? null : c.id)}
                     >
-                      +{c.tempHp} temp
+                      <b>{c.currentHp}</b>
+                      <span className="hp-max">/ {c.maxHp}</span>
+                      {c.tempHp > 0 && <span className="hp-temp">+{c.tempHp}</span>}
                     </button>
-                  )}
-                  <span className="hp-actions">
-                    <input
-                      className="amt-input"
-                      inputMode="numeric"
-                      placeholder="#"
-                      aria-label={`Amount for ${c.name}`}
-                      value={amounts[c.id] ?? ''}
-                      onChange={(e) =>
-                        setAmounts((a) => ({ ...a, [c.id]: e.target.value.replace(/[^0-9]/g, '') }))
-                      }
-                      onKeyDown={(e) => e.key === 'Enter' && applyRow(c, 'damage')}
-                    />
-                    <button className="btn sm dmg" disabled={amt === null} onClick={() => applyRow(c, 'damage')} title="Damage (Enter)">
-                      Dmg
-                    </button>
-                    <button className="btn sm" disabled={amt === null} onClick={() => applyRow(c, 'heal')}>
-                      Heal
-                    </button>
-                    <button className="btn sm ghost" disabled={amt === null} onClick={() => applyRow(c, 'temp')} title="Set temporary HP (doesn't stack: keeps the higher)">
-                      Temp
-                    </button>
-                  </span>
+                    {hpFor === c.id && (
+                      <Popover anchorRef={hpBtnRef} open onClose={() => setHpFor(null)}>
+                        <div className="hp-pop">
+                          <input
+                            ref={hpInputRef}
+                            className="amt-input"
+                            inputMode="numeric"
+                            placeholder="Amount"
+                            aria-label={`Amount for ${c.name}`}
+                            value={hpAmount}
+                            onChange={(e) => setHpAmount(e.target.value.replace(/[^0-9]/g, ''))}
+                            onKeyDown={(e) => e.key === 'Enter' && applyRow(c, 'damage')}
+                          />
+                          <button
+                            className="btn sm danger"
+                            disabled={amt === null}
+                            onClick={() => applyRow(c, 'damage')}
+                            title="Damage (Enter)"
+                          >
+                            Damage
+                          </button>
+                          <button className="btn sm" disabled={amt === null} onClick={() => applyRow(c, 'heal')}>
+                            Heal
+                          </button>
+                          <button
+                            className="btn sm ghost"
+                            disabled={amt === null}
+                            onClick={() => applyRow(c, 'temp')}
+                            title="Set temporary HP (doesn't stack: keeps the higher)"
+                          >
+                            Temp
+                          </button>
+                          <div className="hp-pop-foot">
+                            <label>
+                              Set HP
+                              <input
+                                className="amt-input"
+                                inputMode="numeric"
+                                aria-label={`Set ${c.name}'s current HP directly`}
+                                value={c.currentHp}
+                                onChange={(e) =>
+                                  updateCombatant(c.id, {
+                                    currentHp: parseInt(e.target.value, 10) || 0,
+                                  })
+                                }
+                              />
+                            </label>
+                            {c.tempHp > 0 && (
+                              <button className="btn sm ghost" onClick={() => updateCombatant(c.id, { tempHp: 0 })}>
+                                Clear temp
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </Popover>
+                    )}
+                  </div>
                 </div>
                 <div className="hp-bar">
                   <span style={{ width: `${pct}%`, background: barColor }} />
@@ -313,7 +378,11 @@ export function InitiativePanel({ onClose }: PanelComponentProps) {
                         <span
                           key={cond}
                           className={`cond-chip ${cond === CONCENTRATING ? 'conc' : ''}`}
-                          title={left ? `${left} round${left === 1 ? '' : 's'} left (counts down at the end of its turn). Click to remove.` : 'Click to remove'}
+                          title={
+                            left
+                              ? `${left} round${left === 1 ? '' : 's'} left (counts down at the end of its turn). Click to remove.`
+                              : 'Click to remove'
+                          }
                           onClick={() => {
                             const { [cond]: _gone, ...rest } = c.condRounds ?? {};
                             updateCombatant(c.id, {
@@ -330,7 +399,7 @@ export function InitiativePanel({ onClose }: PanelComponentProps) {
                   </div>
                 )}
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, position: 'relative' }}>
+              <div className="cactions">
                 <button
                   ref={condFor === c.id ? condBtnRef : undefined}
                   className="btn sm"
@@ -341,16 +410,16 @@ export function InitiativePanel({ onClose }: PanelComponentProps) {
                 >
                   Cond
                 </button>
-                <button className="btn sm ghost" aria-label={`Remove ${c.name}`} onClick={() => removeCombatant(c.id)}>
+                <button
+                  className="btn sm ghost row-remove"
+                  aria-label={`Remove ${c.name}`}
+                  title="Remove from combat"
+                  onClick={() => removeCombatant(c.id)}
+                >
                   ✕
                 </button>
                 {condFor === c.id && (
-                  <Popover
-                    anchorRef={condBtnRef}
-                    open
-                    onClose={() => setCondFor(null)}
-                    align="right"
-                  >
+                  <Popover anchorRef={condBtnRef} open onClose={() => setCondFor(null)} align="right">
                     <div className="cond-popover">
                       <label className="cond-rounds">
                         Rounds

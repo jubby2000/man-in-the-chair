@@ -619,15 +619,49 @@ select.select {
   grid-template-columns: auto 34px 1fr auto;
   gap: 8px;
   align-items: center;
-  padding: 8px 10px;
+  padding: 6px 10px;
   border-bottom: 1px solid var(--border-soft);
+}
+/* One left edge per row, by priority: active turn > selected > PC.
+   Later rules win, so the order below IS the priority. */
+.combatant.pc {
+  box-shadow: inset 3px 0 0 var(--good);
+}
+.combatant.selected {
+  background: var(--bg-elev);
+  box-shadow: inset 3px 0 0 var(--accent-2);
 }
 .combatant.active {
   background: var(--accent-soft);
   box-shadow: inset 3px 0 0 var(--accent);
 }
-.combatant.pc {
-  border-left: 3px solid var(--good);
+.cbody {
+  min-width: 0;
+}
+.cline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cline .cname {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cactions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+/* remove button appears on row hover / keyboard focus only */
+.combatant .row-remove {
+  opacity: 0;
+}
+.combatant:hover .row-remove,
+.combatant:focus-within .row-remove {
+  opacity: 1;
 }
 .combatant .init-box {
   width: 30px;
@@ -689,22 +723,10 @@ select.select {
   color: var(--magenta);
   border: 1px solid var(--magenta);
 }
-.combatant.selected {
-  box-shadow: inset 3px 0 0 var(--danger);
-}
-.combatant.active.selected {
-  box-shadow: inset 3px 0 0 var(--accent), inset 6px 0 0 var(--danger);
-}
 .combatant-select {
-  accent-color: var(--danger);
+  accent-color: var(--accent);
   margin: 0;
   cursor: pointer;
-}
-.hp-actions {
-  display: inline-flex;
-  gap: 3px;
-  margin-left: auto;
-  align-items: center;
 }
 .hp-track .amt-input,
 .amt-input {
@@ -717,22 +739,73 @@ select.select {
   padding: 2px 4px;
   font-size: 12px;
 }
-.temp-badge {
-  font-size: 10px;
-  padding: 1px 6px;
-  border-radius: 8px;
-  border: 1px solid var(--accent);
-  background: var(--accent-soft);
-  color: var(--accent-2);
+/* HP pill: the row's one HP control; opens the damage/heal popover */
+.hp-pill {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+  padding: 2px 9px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 12px;
   cursor: pointer;
+  white-space: nowrap;
 }
-.btn.dmg {
-  color: var(--danger);
-  border-color: var(--danger);
+.hp-pill:hover,
+.hp-pill.open {
+  border-color: var(--accent);
+}
+.hp-pill:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.hp-pill .hp-max {
+  color: var(--text-faint);
+}
+.hp-pill .hp-temp {
+  color: var(--accent-2);
+  font-weight: 600;
+}
+.hp-pop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  width: 248px;
+  padding: 8px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+}
+.hp-pop > .amt-input {
+  width: 64px;
+}
+.hp-pop-foot {
+  flex-basis: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-top: 4px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border-soft);
+  font-size: 11px;
+  color: var(--text-dim);
+}
+.hp-pop-foot label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+/* Disabled danger buttons go neutral: red is only for an action you can take */
+.btn.danger:disabled {
   background: transparent;
-}
-.btn.dmg:hover:not(:disabled) {
-  background: var(--danger-soft);
+  border-color: var(--border);
+  color: var(--text-dim);
+  font-weight: 600;
 }
 .btn:disabled,
 .btn[aria-disabled='true'] {
@@ -784,8 +857,11 @@ select.select {
 .group-hit-count {
   font-size: 12px;
   font-weight: 700;
-  color: var(--danger);
+  color: var(--accent-2);
   margin-right: 2px;
+}
+.group-hit .amt-input {
+  width: 72px;
 }
 .group-hit-targets {
   list-style: none;
@@ -824,7 +900,6 @@ select.select {
   color: var(--text);
 }
 .hit-toggle:focus-visible,
-.temp-badge:focus-visible,
 .combatant-select:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
@@ -2531,4 +2606,80 @@ select.select {
   text-transform: uppercase;
   color: var(--text-faint);
   padding: 10px 12px 4px;
+}
+
+/* "+ Add" combatant picker */
+.add-picker {
+  width: 320px;
+  padding: 8px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.add-picker-status {
+  font-size: 11px;
+  color: var(--text-faint);
+  min-height: 15px;
+  padding: 0 2px;
+}
+.add-picker-scroll {
+  max-height: 340px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.add-picker-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  padding: 2px 2px 4px;
+}
+.add-picker-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 5px 8px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+.add-picker-row:hover:not(:disabled),
+.add-picker-row:focus-visible {
+  background: var(--accent-soft);
+  outline: none;
+}
+.add-picker-row:disabled {
+  color: var(--text-faint);
+  cursor: default;
+}
+.add-picker-row .meta {
+  font-size: 11px;
+  white-space: nowrap;
+}
+.add-picker-empty {
+  font-size: 12px;
+  color: var(--text-faint);
+  padding: 2px 8px 4px;
+  line-height: 1.45;
+}
+.add-picker-custom {
+  display: grid;
+  grid-template-columns: 1fr 52px 52px auto;
+  gap: 4px;
+  padding: 0 2px;
 }
