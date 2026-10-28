@@ -21,6 +21,15 @@ import { db, getKV, setKV } from '../lib/db';
 import { requestPersistentStorage } from '../lib/backup';
 import { parseAndRoll, countPhysicalDice, MAX_DICE, type RollResult } from '../lib/dice';
 import { DEFAULT_PRESETS, placeNewPanel } from './presets';
+import {
+  applyHit,
+  endOfTurn,
+  CONCENTRATING,
+  type DamageMode,
+  type DamageMod,
+  type SaveResult,
+  type CombatLogLine,
+} from '../lib/combat';
 
 const EMPTY: Compendium = {
   monsters: [], spells: [], items: [], conditions: [], rules: [],
@@ -150,6 +159,14 @@ interface AppState {
   addCombatant: (c: Omit<Combatant, 'id'>) => void;
   addMonsterToCombat: (m: Monster, initiative?: number) => void;
   updateCombatant: (id: string, patch: Partial<Combatant>) => void;
+  /** Damage or heal one or more combatants, each with its own save/resistance. */
+  applyHits: (
+    targets: { id: string; save?: SaveResult; mod?: DamageMod }[],
+    amount: number,
+    mode: DamageMode,
+  ) => void;
+  /** Clear a reminder; for a failed concentration save, also drops Concentrating. */
+  resolveCombatPrompt: (combatantId: string, promptId: string, outcome?: 'kept' | 'lost') => void;
   removeCombatant: (id: string) => void;
   sortInitiative: () => void;
   nextTurn: () => void;
@@ -448,6 +465,48 @@ export const useStore = create<AppState>((set, get) => ({
       return { combatants, ...logPatch };
     }),
 
+  applyHits: (targets, amount, mode) =>
+    set((s) => {
+      const byId = new Map(targets.map((t) => [t.id, t]));
+      const log: CombatLogLine[] = [];
+      const combatants = s.combatants.map((c) => {
+        const t = byId.get(c.id);
+        if (!t) return c;
+        const r = applyHit(c, amount, mode, { save: t.save, mod: t.mod });
+        log.push(...r.log);
+        const next = { ...c, ...r.patch };
+        if (c.currentHp > 0 && next.currentHp <= 0)
+          log.unshift({ text: `${c.name} ${c.isPC ? 'goes down' : 'is defeated'}`, event: 'drop' });
+        return next;
+      });
+      if (!log.length) return { combatants };
+      const sessionLog = [...s.sessionLog, ...log.map((l) => logEntry(l.text, 'auto', l.event))];
+      void setKV('sessionLog', sessionLog);
+      return { combatants, sessionLog };
+    }),
+
+  resolveCombatPrompt: (combatantId, promptId, outcome) =>
+    set((s) => {
+      let logText: string | null = null;
+      const combatants = s.combatants.map((c) => {
+        if (c.id !== combatantId) return c;
+        const prompts = (c.prompts ?? []).filter((p) => p.id !== promptId);
+        if (outcome !== 'lost') return { ...c, prompts };
+        logText = `${c.name} loses concentration`;
+        const { [CONCENTRATING]: _gone, ...condRounds } = c.condRounds ?? {};
+        return {
+          ...c,
+          prompts: prompts.filter((p) => p.kind !== 'concentration'),
+          conditions: c.conditions.filter((x) => x !== CONCENTRATING),
+          condRounds,
+        };
+      });
+      if (!logText) return { combatants };
+      const sessionLog = [...s.sessionLog, logEntry(logText, 'auto', 'status')];
+      void setKV('sessionLog', sessionLog);
+      return { combatants, sessionLog };
+    }),
+
   removeCombatant: (id) =>
     set((s) => ({ combatants: s.combatants.filter((c) => c.id !== id) })),
 
@@ -481,6 +540,16 @@ export const useStore = create<AppState>((set, get) => ({
         events.push(logEntry(`Combat started — ${names}`, 'auto', 'combat-start'));
         combatLogged = true;
       }
+      // The creature whose turn is ending counts down its timed conditions.
+      let combatants = s.combatants;
+      const ending = s.combatants[s.activeTurn];
+      if (ending) {
+        const tick = endOfTurn(ending);
+        if (tick.patch.conditions || tick.patch.condRounds) {
+          combatants = s.combatants.map((c) => (c.id === ending.id ? { ...c, ...tick.patch } : c));
+          events.push(...tick.log.map((l) => logEntry(l.text, 'auto', l.event)));
+        }
+      }
       if (next >= s.combatants.length) {
         next = 0;
         round = s.round + 1;
@@ -492,7 +561,7 @@ export const useStore = create<AppState>((set, get) => ({
         void setKV('sessionLog', sessionLog);
         logPatch = { sessionLog, combatLogged };
       }
-      return { activeTurn: next, round, ...selectionForTurn(s.combatants, next), ...logPatch };
+      return { combatants, activeTurn: next, round, ...selectionForTurn(combatants, next), ...logPatch };
     }),
 
   resetCombat: () =>

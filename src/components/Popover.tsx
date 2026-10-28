@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 
 type Align = 'left' | 'right';
@@ -31,22 +31,44 @@ export function Popover({
   children,
 }: PopoverProps) {
   const popRef = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState<{ top: number; left?: number; right?: number } | null>(null);
+  const [pos, setPos] = useState<{ top: number; left?: number; right?: number; maxHeight?: number } | null>(null);
+  const measured = useRef(false);
+
+  // Position against the anchor. For bottom placement, flip above the anchor
+  // when the popover doesn't fit below and there's more room above, and cap its
+  // height (scrolling inside) so no option is ever pushed off-screen.
+  const place = useCallback(() => {
+    const a = anchorRef.current;
+    if (!a) return;
+    const r = a.getBoundingClientRect();
+    const gap = 6;
+    const margin = 8;
+    const h = popRef.current?.scrollHeight ?? 0;
+    let top: number;
+    let maxHeight: number | undefined;
+    if (placement === 'top') {
+      top = r.top;
+    } else {
+      const below = window.innerHeight - r.bottom - gap - margin;
+      const above = r.top - gap - margin;
+      if (h > below && above > below) {
+        maxHeight = above;
+        top = Math.max(margin, r.top - gap - Math.min(h, above));
+      } else {
+        maxHeight = below;
+        top = r.bottom + gap;
+      }
+    }
+    if (align === 'right') {
+      setPos({ top, right: Math.max(margin, window.innerWidth - r.right), maxHeight });
+    } else {
+      setPos({ top, left: Math.max(margin, r.left), maxHeight });
+    }
+  }, [anchorRef, align, placement]);
 
   useLayoutEffect(() => {
     if (!open) return;
-    const place = () => {
-      const a = anchorRef.current;
-      if (!a) return;
-      const r = a.getBoundingClientRect();
-      const gap = 6;
-      const top = placement === 'top' ? r.top : r.bottom + gap;
-      if (align === 'right') {
-        setPos({ top, right: Math.max(8, window.innerWidth - r.right) });
-      } else {
-        setPos({ top, left: Math.max(8, r.left) });
-      }
-    };
+    measured.current = false;
     place();
     window.addEventListener('scroll', place, true); // capture: catch scroll in any ancestor
     window.addEventListener('resize', place);
@@ -54,7 +76,16 @@ export function Popover({
       window.removeEventListener('scroll', place, true);
       window.removeEventListener('resize', place);
     };
-  }, [open, align, placement, anchorRef]);
+  }, [open, place]);
+
+  // The first placement happens before the popover exists, so its height is
+  // unknown; re-place once it has rendered and can be measured.
+  useLayoutEffect(() => {
+    if (open && pos && popRef.current && !measured.current) {
+      measured.current = true;
+      place();
+    }
+  }, [open, pos, place]);
 
   useEffect(() => {
     if (!open) return;
@@ -86,6 +117,8 @@ export function Popover({
         top: pos.top,
         left: pos.left,
         right: pos.right,
+        maxHeight: pos.maxHeight,
+        overflowY: pos.maxHeight !== undefined ? 'auto' : undefined,
         transform: placement === 'top' ? 'translateY(-100%)' : undefined,
       }}
     >

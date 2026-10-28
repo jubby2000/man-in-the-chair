@@ -616,7 +616,7 @@ select.select {
 }
 .combatant {
   display: grid;
-  grid-template-columns: 34px 1fr auto;
+  grid-template-columns: auto 34px 1fr auto;
   gap: 8px;
   align-items: center;
   padding: 8px 10px;
@@ -683,6 +683,168 @@ select.select {
   background: var(--warn);
   color: var(--accent-ink);
   cursor: pointer;
+}
+.cond-chip.conc {
+  background: var(--magenta-soft);
+  color: var(--magenta);
+  border: 1px solid var(--magenta);
+}
+.combatant.selected {
+  box-shadow: inset 3px 0 0 var(--danger);
+}
+.combatant.active.selected {
+  box-shadow: inset 3px 0 0 var(--accent), inset 6px 0 0 var(--danger);
+}
+.combatant-select {
+  accent-color: var(--danger);
+  margin: 0;
+  cursor: pointer;
+}
+.hp-actions {
+  display: inline-flex;
+  gap: 3px;
+  margin-left: auto;
+  align-items: center;
+}
+.hp-track .amt-input,
+.amt-input {
+  width: 46px;
+  text-align: center;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  padding: 2px 4px;
+  font-size: 12px;
+}
+.temp-badge {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  border: 1px solid var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-2);
+  cursor: pointer;
+}
+.btn.dmg {
+  color: var(--danger);
+  border-color: var(--danger);
+  background: transparent;
+}
+.btn.dmg:hover:not(:disabled) {
+  background: var(--danger-soft);
+}
+.btn:disabled,
+.btn[aria-disabled='true'] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+/* Reminders: concentration save, death save, instant death */
+.combat-prompts {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 5px;
+}
+.combat-prompt {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  padding: 3px 6px 3px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--magenta-soft);
+  color: var(--text);
+  border-left: 3px solid var(--magenta);
+}
+.combat-prompt > span {
+  flex: 1;
+}
+.combat-prompt.death-save,
+.combat-prompt.death {
+  background: var(--danger-soft);
+  border-left-color: var(--danger);
+}
+.combat-prompt.death {
+  font-weight: 700;
+}
+/* Group hit bar (Fireball across several targets) */
+.group-hit {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--bg-elev);
+  flex-shrink: 0;
+}
+.group-hit-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.group-hit-count {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--danger);
+  margin-right: 2px;
+}
+.group-hit-targets {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.group-hit-targets li {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+}
+.group-hit-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}
+.hit-toggle {
+  font-size: 11px;
+  padding: 1px 7px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.hit-toggle.on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--text);
+}
+.hit-toggle:focus-visible,
+.temp-badge:focus-visible,
+.combatant-select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.group-hit-preview {
+  font-family: var(--font-mono);
+  color: var(--danger);
+  min-width: 34px;
+  text-align: right;
+}
+.cond-rounds {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-dim);
+  padding: 4px 6px 6px;
+  border-bottom: 1px solid var(--border-soft);
+  margin-bottom: 2px;
 }
 
 /* ---- Dice panel ---- */

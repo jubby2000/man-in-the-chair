@@ -9,6 +9,7 @@ const ICON: Record<NonNullable<SessionLogEntry['event']>, string> = {
   'combat-start': '⚔️',
   round: '🔄',
   drop: '💀',
+  status: '⏳',
   'combat-end': '🏁',
 };
 
