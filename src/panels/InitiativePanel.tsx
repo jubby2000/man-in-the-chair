@@ -4,7 +4,7 @@ import { Popover } from '../components/Popover';
 import { AddCombatantPicker } from '../components/AddCombatantPicker';
 import type { Combatant, PanelComponentProps } from '../types';
 import { useStore } from '../store/useStore';
-import { CONCENTRATING, effectiveDamage, type DamageMod, type SaveResult } from '../lib/combat';
+import { CONCENTRATING, applyHit, effectiveDamage, type DamageMod, type SaveResult } from '../lib/combat';
 
 const CONDITIONS = [
   'Blinded',
@@ -282,17 +282,29 @@ export function InitiativePanel({ onClose }: PanelComponentProps) {
                     </button>
                     {hpFor === c.id && (
                       <Popover anchorRef={hpBtnRef} open onClose={() => setHpFor(null)}>
-                        <div className="hp-pop">
-                          <input
-                            ref={hpInputRef}
-                            className="amt-input"
-                            inputMode="numeric"
-                            placeholder="Amount"
-                            aria-label={`Amount for ${c.name}`}
-                            value={hpAmount}
-                            onChange={(e) => setHpAmount(e.target.value.replace(/[^0-9]/g, ''))}
-                            onKeyDown={(e) => e.key === 'Enter' && applyRow(c, 'damage')}
-                          />
+                        <div className="hp-pop" role="dialog" aria-label={`${c.name} hit points`}>
+                        <div className="hp-pop-head">
+                          <span className="hp-pop-name">{c.name}</span>
+                          <span className="hp-pop-now">
+                            {c.currentHp} / {c.maxHp}
+                            {c.tempHp > 0 && <span className="hp-temp"> +{c.tempHp} temp</span>}
+                          </span>
+                        </div>
+                        <input
+                          ref={hpInputRef}
+                          className="hp-pop-amount"
+                          inputMode="numeric"
+                          placeholder="0"
+                          aria-label={`Amount for ${c.name}`}
+                          value={hpAmount}
+                          onChange={(e) => setHpAmount(e.target.value.replace(/[^0-9]/g, ''))}
+                          onKeyDown={(e) => {
+                            if (e.key !== 'Enter') return;
+                            e.preventDefault();
+                            applyRow(c, e.shiftKey ? 'heal' : 'damage');
+                          }}
+                        />
+                        <div className="hp-pop-actions">
                           <button
                             className="btn sm danger"
                             disabled={amt === null}
@@ -301,40 +313,54 @@ export function InitiativePanel({ onClose }: PanelComponentProps) {
                           >
                             Damage
                           </button>
-                          <button className="btn sm" disabled={amt === null} onClick={() => applyRow(c, 'heal')}>
+                          <button
+                            className="btn sm heal"
+                            disabled={amt === null}
+                            onClick={() => applyRow(c, 'heal')}
+                            title="Heal (Shift+Enter)"
+                          >
                             Heal
                           </button>
                           <button
-                            className="btn sm ghost"
+                            className="btn sm"
                             disabled={amt === null}
                             onClick={() => applyRow(c, 'temp')}
                             title="Set temporary HP (doesn't stack: keeps the higher)"
                           >
                             Temp
                           </button>
-                          <div className="hp-pop-foot">
-                            <label>
-                              Set HP
-                              <input
-                                className="amt-input"
-                                inputMode="numeric"
-                                aria-label={`Set ${c.name}'s current HP directly`}
-                                value={c.currentHp}
-                                onChange={(e) =>
-                                  updateCombatant(c.id, {
-                                    currentHp: parseInt(e.target.value, 10) || 0,
-                                  })
-                                }
-                              />
-                            </label>
-                            {c.tempHp > 0 && (
-                              <button className="btn sm ghost" onClick={() => updateCombatant(c.id, { tempHp: 0 })}>
-                                Clear temp
-                              </button>
-                            )}
-                          </div>
                         </div>
-                      </Popover>
+                        <div className="hp-pop-hint" aria-live="polite">
+                          {amt === null ? (
+                            <>
+                              <kbd>Enter</kbd> damage · <kbd>Shift</kbd>+<kbd>Enter</kbd> heal
+                            </>
+                          ) : (
+                            <>
+                              Damage → <b>{applyHit(c, amt, 'damage').patch.currentHp ?? c.currentHp}</b> · Heal →{' '}
+                              <b>{Math.min(c.maxHp, Math.max(0, c.currentHp) + amt)}</b>
+                            </>
+                          )}
+                        </div>
+                        <div className="hp-pop-foot">
+                          <label>
+                            Set HP
+                            <input
+                              className="amt-input"
+                              inputMode="numeric"
+                              aria-label={`Set ${c.name}'s current HP directly`}
+                              value={c.currentHp}
+                              onChange={(e) => updateCombatant(c.id, { currentHp: parseInt(e.target.value, 10) || 0 })}
+                            />
+                          </label>
+                          {c.tempHp > 0 && (
+                            <button className="btn sm ghost" onClick={() => updateCombatant(c.id, { tempHp: 0 })}>
+                              Clear temp
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </Popover>
                     )}
                   </div>
                 </div>

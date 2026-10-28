@@ -769,28 +769,89 @@ select.select {
   font-weight: 600;
 }
 .hp-pop {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px;
-  width: 248px;
-  padding: 8px;
+  width: 236px;
+  padding: 10px;
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
-.hp-pop > .amt-input {
-  width: 64px;
+.hp-pop-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+}
+.hp-pop-name {
+  font-weight: 700;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hp-pop-now {
+  color: var(--text-dim);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.hp-pop-amount {
+  width: 100%;
+  box-sizing: border-box;
+  text-align: center;
+  font-size: 22px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  padding: 6px 8px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.hp-pop-amount::placeholder {
+  color: var(--text-faint);
+}
+.hp-pop-amount:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+.hp-pop-actions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.hp-pop-actions .btn {
+  justify-content: center;
+  text-align: center;
+}
+.hp-pop-hint {
+  font-size: 11px;
+  color: var(--text-faint);
+  text-align: center;
+  min-height: 16px;
+  font-variant-numeric: tabular-nums;
+}
+.hp-pop-hint b {
+  color: var(--text);
+}
+.hp-pop-hint kbd {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 0 4px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--text-dim);
 }
 .hp-pop-foot {
-  flex-basis: 100%;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 6px;
-  margin-top: 4px;
-  padding-top: 6px;
+  padding-top: 8px;
   border-top: 1px solid var(--border-soft);
   font-size: 11px;
   color: var(--text-dim);
@@ -800,12 +861,24 @@ select.select {
   align-items: center;
   gap: 6px;
 }
+/* Heal: green outline once there's an amount to apply (outline, not fill, so
+   the text stays readable whatever green a theme uses) */
+.btn.heal:not(:disabled) {
+  background: var(--good-soft);
+  border-color: var(--good);
+  color: var(--good);
+  font-weight: 700;
+}
+.btn.heal:not(:disabled):hover {
+  filter: brightness(1.1);
+}
 /* Disabled danger buttons go neutral: red is only for an action you can take */
 .btn.danger:disabled {
-  background: transparent;
+  /* same as any disabled .btn (the shared opacity does the dimming) */
+  background: var(--bg-elev);
   border-color: var(--border);
-  color: var(--text-dim);
-  font-weight: 600;
+  color: var(--text);
+  font-weight: 500;
 }
 .btn:disabled,
 .btn[aria-disabled='true'] {
