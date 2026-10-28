@@ -4,6 +4,7 @@ import { DiceSetPicker } from './DiceSetPicker';
 import { Dropdown } from './Dropdown';
 import { useStore } from '../store/useStore';
 import { downloadBackup, restoreBackup, BackupError } from '../lib/backup';
+import { IS_DEMO, DEMO_BLOCKED_MESSAGE } from '../lib/demo';
 import type { Edition } from '../types';
 
 /** Gear menu consolidating appearance/config controls so the top bar stays lean. */
@@ -115,23 +116,37 @@ export function SettingsMenu() {
           <div className="settings-row">
             <label className="settings-label">Data</label>
             <div className="settings-data">
-              <button className="btn sm" onClick={() => void downloadBackup()}>
-                Download backup
-              </button>
-              <button className="btn sm" onClick={() => fileRef.current?.click()}>
-                Restore…
-              </button>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="application/json,.json"
-                style={{ display: 'none' }}
-                onChange={(e) => void onRestoreFile(e.target.files?.[0])}
-              />
+              {IS_DEMO ? (
+                <>
+                  <button className="btn sm demo-locked" onClick={() => showToast(DEMO_BLOCKED_MESSAGE)}>
+                    Download backup
+                  </button>
+                  <button className="btn sm demo-locked" onClick={() => showToast(DEMO_BLOCKED_MESSAGE)}>
+                    Restore…
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button className="btn sm" onClick={() => void downloadBackup()}>
+                    Download backup
+                  </button>
+                  <button className="btn sm" onClick={() => fileRef.current?.click()}>
+                    Restore…
+                  </button>
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    accept="application/json,.json"
+                    style={{ display: 'none' }}
+                    onChange={(e) => void onRestoreFile(e.target.files?.[0])}
+                  />
+                </>
+              )}
             </div>
             <div className="settings-hint">
-              Everything lives in this browser. Download a backup regularly, or before switching
-              browsers/devices — a backup file restores all your data.
+              {IS_DEMO
+                ? 'Backup and restore are turned off in the demo. Everything here resets when you reload.'
+                : 'Everything lives in this browser. Download a backup regularly, or before switching browsers/devices — a backup file restores all your data.'}
             </div>
           </div>
         </div>

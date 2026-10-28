@@ -26,6 +26,8 @@ import { PromptDialog } from './components/PromptDialog';
 import { SettingsMenu } from './components/SettingsMenu';
 import { useThemeStore } from './theme/useThemeStore';
 import { useDiceSetStore } from './theme/diceSets';
+import { IS_DEMO, DEMO_BLOCKED_MESSAGE } from './lib/demo';
+import { DemoBanner } from './components/DemoBanner';
 
 // 3D overlay (three.js) is heavy — load it only when a roll happens.
 const DiceOverlay = lazy(() =>
@@ -76,6 +78,7 @@ export default function App() {
   const confirmDialog = useStore((s) => s.confirm);
     const promptDialog = useStore((s) => s.prompt);
 
+  const showToast = useStore((s) => s.showToast);
   const [showImport, setShowImport] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
   const initTheme = useThemeStore((s) => s.init);
@@ -158,6 +161,7 @@ export default function App() {
 
   return (
     <div className="app">
+      {IS_DEMO && <DemoBanner />}
       <div className="topbar">
         <div className="brand">
           <span className="glyph">◆</span>
@@ -234,7 +238,11 @@ export default function App() {
           />
         )}
 
-        <button className="btn" onClick={() => setShowImport(true)}>
+        <button
+          className={IS_DEMO ? 'btn demo-locked' : 'btn'}
+          title={IS_DEMO ? DEMO_BLOCKED_MESSAGE : undefined}
+          onClick={() => (IS_DEMO ? showToast(DEMO_BLOCKED_MESSAGE) : setShowImport(true))}
+        >
           Import
         </button>
         <button className="btn icon" title="Send feedback" aria-label="Send feedback" onClick={() => setShowFeedback(true)}>

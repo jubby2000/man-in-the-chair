@@ -18,6 +18,8 @@ import type {
 import { loadCompendium, existingNames } from '../lib/compendium';
 import { buildImportedSource, countDuplicates } from '../lib/import';
 import { db, getKV, setKV } from '../lib/db';
+import { IS_DEMO } from '../lib/demo';
+import { seedDemoDb, demoRuntimeState } from '../lib/demoSeed';
 import { requestPersistentStorage } from '../lib/backup';
 import { parseAndRoll, countPhysicalDice, MAX_DICE, type RollResult } from '../lib/dice';
 import { DEFAULT_PRESETS, placeNewPanel } from './presets';
@@ -259,7 +261,12 @@ export const useStore = create<AppState>((set, get) => ({
   activePresetId: DEFAULT_PRESETS[0].id,
 
   init: async () => {
-    void requestPersistentStorage(); // ask the browser not to evict our data
+    if (IS_DEMO) {
+      // fresh copy of the demo on every load; never ask to keep it
+      await seedDemoDb();
+    } else {
+      void requestPersistentStorage(); // ask the browser not to evict our data
+    }
     const edition = await getKV<Edition>('edition', 'srd51');
     const savedPresets = await db.layouts.toArray();
     const presets = savedPresets.length ? savedPresets : DEFAULT_PRESETS;
@@ -275,6 +282,7 @@ export const useStore = create<AppState>((set, get) => ({
       await db.layouts.bulkPut(DEFAULT_PRESETS);
     }
     set({ ready: true, edition, displayName, compendium, imports, presets, activePresetId, party, sessionLog, bookAliases, customTables });
+    if (IS_DEMO) set(demoRuntimeState(compendium, party));
   },
 
   setDisplayName: (name) => {
