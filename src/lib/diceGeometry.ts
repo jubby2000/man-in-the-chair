@@ -132,6 +132,91 @@ export function readUpFace(faces: FaceMap[], quaternion: THREE.Quaternion): numb
   return best.value;
 }
 
+// ---- d4: numbered at the corners, like a real d4 ----
+// A resting tetrahedron has no face pointing up (three tilt up equally), but
+// exactly one corner does. So each corner carries a value 1..4, every face
+// prints the values of its three corners (each near its corner, upright when
+// that corner points up), and the result is the highest corner. That number
+// reads upright on all three visible faces.
+
+export const D4_RADIUS = 0.85;
+
+/** Same vertices as THREE.TetrahedronGeometry(D4_RADIUS), with their values. */
+export const D4_CORNERS: { pos: THREE.Vector3; value: number }[] = [
+  [1, 1, 1],
+  [-1, -1, 1],
+  [-1, 1, -1],
+  [1, -1, -1],
+].map(([x, y, z], i) => ({ pos: new THREE.Vector3(x, y, z).normalize().multiplyScalar(D4_RADIUS), value: i + 1 }));
+
+export interface CornerLabel {
+  position: THREE.Vector3;
+  quaternion: THREE.Quaternion;
+  value: number;
+}
+
+/** How far from a face's centre toward its corner each number sits (0 = centre, 1 = corner). */
+const D4_LABEL_REACH = 0.58;
+
+/** 12 labels: three per face, each pointing at its corner. */
+export function d4CornerLabels(): CornerLabel[] {
+  const labels: CornerLabel[] = [];
+  for (let skip = 0; skip < 4; skip++) {
+    const corners = D4_CORNERS.filter((_, i) => i !== skip);
+    const centroid = new THREE.Vector3();
+    corners.forEach((c) => centroid.add(c.pos));
+    centroid.multiplyScalar(1 / 3);
+    const normal = centroid.clone().normalize(); // regular tetra centred at the origin
+    for (const c of corners) {
+      const up = c.pos.clone().sub(centroid).normalize(); // in the face plane, toward the corner
+      const right = new THREE.Vector3().crossVectors(up, normal);
+      const quaternion = new THREE.Quaternion().setFromRotationMatrix(
+        new THREE.Matrix4().makeBasis(right, up, normal),
+      );
+      const position = centroid
+        .clone()
+        .lerp(c.pos, D4_LABEL_REACH)
+        .add(normal.clone().multiplyScalar(0.03)); // just off the surface
+      labels.push({ position, quaternion, value: c.value });
+    }
+  }
+  return labels;
+}
+
+/** The d4 result: the value of the corner that ends up highest. */
+export function readD4(quaternion: THREE.Quaternion): number {
+  let best = D4_CORNERS[0].value;
+  let bestY = -Infinity;
+  const p = new THREE.Vector3();
+  for (const c of D4_CORNERS) {
+    const y = p.copy(c.pos).applyQuaternion(quaternion).y;
+    if (y > bestY) {
+      bestY = y;
+      best = c.value;
+    }
+  }
+  return best;
+}
+
+/**
+ * Whether a settled d4 lies flat: three corners on the floor. A d4 leaning
+ * against a tray wall rests on one corner instead ("cocked"), with two corners
+ * at similar heights, so its top corner isn't clear.
+ */
+export function d4RestsFlat(quaternion: THREE.Quaternion, centreY: number, floorY = 0): boolean {
+  const p = new THREE.Vector3();
+  let down = 0;
+  for (const c of D4_CORNERS) {
+    if (p.copy(c.pos).applyQuaternion(quaternion).y + centreY - floorY < 0.06) down++;
+  }
+  return down >= 3;
+}
+
+/** Read a settled die's result: the top corner for a d4, the up face otherwise. */
+export function readDie(sides: number, faces: FaceMap[], quaternion: THREE.Quaternion): number {
+  return sides === 4 ? readD4(quaternion) : readUpFace(faces, quaternion);
+}
+
 /** A pentagonal trapezohedron: the real 10-faced d10 shape (10 kite faces). */
 function d10Geometry(radius = 0.85): THREE.BufferGeometry {
   // Two apex points and two rings of 5 vertices, offset by 36°, at +/- a small
@@ -186,7 +271,7 @@ function d10Geometry(radius = 0.85): THREE.BufferGeometry {
 export function geometryFor(sides: number): THREE.BufferGeometry {
   switch (sides) {
     case 4:
-      return new THREE.TetrahedronGeometry(0.85);
+      return new THREE.TetrahedronGeometry(D4_RADIUS);
     case 6:
       return new THREE.BoxGeometry(1, 1, 1);
     case 8:

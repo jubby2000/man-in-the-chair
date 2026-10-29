@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 import { useStore } from '../store/useStore';
 import { diceToRender, combineFaces, rollLabel, type RollResult, type RenderDie } from '../lib/dice';
-import { faceMapFor, geometryFor, readUpFace, type FaceMap } from '../lib/diceGeometry';
+import { faceMapFor, geometryFor, readDie, d4CornerLabels, d4RestsFlat, type FaceMap } from '../lib/diceGeometry';
 import { playClack, preloadDiceSound, setDiceMuted, isDiceMuted } from '../lib/diceSound';
 import { useDiceSetStore, type DiceSet } from '../theme/diceSets';
 
@@ -30,10 +30,47 @@ interface DieHandle {
   faces: FaceMap[];
   body: CANNON.Body;
   render: RenderDie;
+  /** times this die was nudged off a wall (d4 only) */
+  nudges: number;
 }
 
 function rand(a: number, b: number): number {
   return a + Math.random() * (b - a);
+}
+
+const MAX_NUDGES = 5;
+
+/**
+ * A uniformly random rotation (Shoemake's method). Random Euler angles are NOT
+ * uniform: they favour some orientations, and a short drop doesn't always
+ * tumble enough to wash that out, which biased the results.
+ */
+function randomQuaternion(): CANNON.Quaternion {
+  const u1 = Math.random(), u2 = Math.random() * 2 * Math.PI, u3 = Math.random() * 2 * Math.PI;
+  const a = Math.sqrt(1 - u1), b = Math.sqrt(u1);
+  return new CANNON.Quaternion(a * Math.sin(u2), a * Math.cos(u2), b * Math.sin(u3), b * Math.cos(u3));
+}
+
+/**
+ * A d4 that comes to rest leaning on a tray wall has no flat face down, so its
+ * top corner is unclear. Like a player would, nudge it away from the wall with
+ * a little spin. Returns true if any die was nudged. After MAX_NUDGES the die
+ * is read where it lies (its highest corner still wins).
+ */
+function nudgeCockedD4s(handles: DieHandle[]): boolean {
+  let nudged = false;
+  for (const h of handles) {
+    if (h.sides !== 4 || h.nudges >= MAX_NUDGES) continue;
+    const b = h.body;
+    const q = new THREE.Quaternion(b.quaternion.x, b.quaternion.y, b.quaternion.z, b.quaternion.w);
+    if (d4RestsFlat(q, b.position.y, FLOOR_Y)) continue;
+    h.nudges++;
+    b.wakeUp();
+    b.velocity.set(-Math.sign(b.position.x) * rand(3.5, 5), rand(3, 4.5), -Math.sign(b.position.z) * rand(3.5, 5));
+    b.angularVelocity.set(rand(-8, 8), rand(-8, 8), rand(-8, 8));
+    nudged = true;
+  }
+  return nudged;
 }
 
 // Build a cannon body approximating the die, sized to its three.js geometry.
@@ -88,6 +125,8 @@ function Die({ handle, set }: { handle: DieHandle; set: DiceSet }) {
   const groupRef = useRef<THREE.Group>(null);
   const color = set.textureDataUrl ? '#ffffff' : set.perType?.[handle.sides] ?? set.body;
   const geometry = useMemo(() => geometryFor(handle.sides), [handle.sides]);
+  // d4: three corner numbers per face instead of one central label
+  const d4Labels = useMemo(() => (handle.sides === 4 ? d4CornerLabels() : []), [handle.sides]);
   // d10 kite faces are narrow and taper to a point, so they need a smaller
   // label than the broad faces of a d6/d8.
   const labelSize = handle.sides === 10 ? 0.26 : handle.sides === 20 || handle.sides === 12 ? 0.34 : 0.4;
@@ -124,7 +163,23 @@ function Die({ handle, set }: { handle: DieHandle; set: DiceSet }) {
           side={THREE.DoubleSide}
         />
       </mesh>
-      {handle.faces.map((f, i) => {
+      {handle.sides === 4
+        ? d4Labels.map((l, i) => (
+            <Text
+              key={i}
+              position={[l.position.x, l.position.y, l.position.z]}
+              quaternion={l.quaternion}
+              fontSize={0.34}
+              color={set.ink}
+              anchorX="center"
+              anchorY="middle"
+              outlineWidth={set.outline ? 0.01 : 0}
+              outlineColor={set.outline ?? '#000000'}
+            >
+              {l.value}
+            </Text>
+          ))
+        : handle.faces.map((f, i) => {
         // sit the label just off the surface along the face normal (avoids
         // z-fighting and keeps it on the visible side of the mesh)
         const pos = f.center.clone().add(f.normal.clone().multiplyScalar(0.03));
@@ -219,7 +274,7 @@ function DiceScene({
       // bias velocity toward the tray center so dice don't pile on a wall
       body.velocity.set(-spawnX * 0.6 + rand(-2, 2), rand(-1, 1), -spawnZ * 0.6 + rand(-2, 2));
       body.angularVelocity.set(rand(-14, 14), rand(-14, 14), rand(-14, 14));
-      body.quaternion.setFromEuler(rand(0, Math.PI), rand(0, Math.PI), rand(0, Math.PI));
+      body.quaternion.copy(randomQuaternion());
       body.addEventListener('collide', (e: { body: CANNON.Body; contact: CANNON.ContactEquation }) => {
         const v = Math.abs(e.contact.getImpactVelocityAlongNormal());
         if (v <= 1.5) return;
@@ -234,7 +289,7 @@ function DiceScene({
         }
       });
       world.addBody(body);
-      return { sides: d.sides, index, faces, body, render: d };
+      return { sides: d.sides, index, faces, body, render: d, nudges: 0 };
     });
 
     worldRef.current = world;
@@ -263,6 +318,11 @@ function DiceScene({
     const elapsed = performance.now() - startTime.current;
     calmFrames.current = moving ? 0 : calmFrames.current + 1;
 
+    if (calmFrames.current >= SETTLE_FRAMES && elapsed <= MAX_ROLL_MS && nudgeCockedD4s(handles)) {
+      calmFrames.current = 0; // a cocked d4 was nudged off the wall; let it settle again
+      return;
+    }
+
     if (calmFrames.current >= SETTLE_FRAMES || elapsed > MAX_ROLL_MS) {
       settled.current = true;
       // raw up-face per physical die, in handle order
@@ -273,7 +333,7 @@ function DiceScene({
           h.body.quaternion.z,
           h.body.quaternion.w,
         );
-        return readUpFace(h.faces, q);
+        return readDie(h.sides, h.faces, q);
       });
       const renderDice = handles.map((h) => h.render);
       const total = combineFaces(result, renderDice, rawFaces);
