@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Panel } from '../components/Panel';
 import type { PanelComponentProps } from '../types';
+import { NumberInput } from '../components/NumberInput';
 
 type Mode = 'countdown' | 'stopwatch';
 
@@ -99,9 +100,8 @@ export function TimerPanel({ onClose }: PanelComponentProps) {
           <div className="timer-set">
             <label>
               Min
-              <input
+              <NumberInput
                 className="input"
-                type="number"
                 min={0}
                 value={mins}
                 onChange={(e) => setMins(Math.max(0, parseInt(e.target.value, 10) || 0))}
@@ -109,9 +109,8 @@ export function TimerPanel({ onClose }: PanelComponentProps) {
             </label>
             <label>
               Sec
-              <input
+              <NumberInput
                 className="input"
-                type="number"
                 min={0}
                 max={59}
                 value={secs}

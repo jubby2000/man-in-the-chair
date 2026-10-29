@@ -2888,3 +2888,49 @@ a.btn { text-decoration: none; }
   text-decoration: none;
 }
 .feedback-support:hover { color: var(--text); text-decoration: underline; }
+
+/* ---- number fields: themed stepper instead of the native spinner ---- */
+input[type='number'] { -moz-appearance: textfield; appearance: textfield; }
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
+.num-input { position: relative; display: block; width: 100%; }
+/* room for the arrows; centred fields pad both sides so the number stays centred */
+.num-input > .input { padding-right: 28px; }
+.timer-set .num-input > .input { padding-left: 22px; padding-right: 22px; }
+.timer-set .num-input { width: 72px; }
+.num-steps {
+  position: absolute;
+  top: 50%;
+  right: 7px;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s;
+}
+.num-input:hover .num-steps,
+.num-input:focus-within .num-steps { opacity: 1; pointer-events: auto; }
+@media (hover: none) {
+  .num-steps { opacity: 1; pointer-events: auto; }
+}
+.num-steps button {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 11px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: var(--bg-elev-2);
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.num-steps button:hover { background: var(--accent-soft); color: var(--text); }
+.num-steps button:active { background: var(--accent); color: var(--accent-ink); }
+.num-steps svg { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+@media (prefers-reduced-motion: reduce) {
+  .num-steps { transition: none; }
+}

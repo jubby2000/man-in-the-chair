@@ -6,6 +6,7 @@ import { useStore } from '../store/useStore';
 import { ABILITY_KEYS, ABILITY_LABEL, derivePC, fmt } from '../lib/pc';
 import { combatantFromParty } from '../lib/combatants';
 import { effectiveMax } from '../lib/combat';
+import { NumberInput } from '../components/NumberInput';
 
 const BLANK_ABILITIES: Ability = { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 };
 
@@ -178,9 +179,8 @@ export function PartyPanel({ onClose }: PanelComponentProps) {
             </div>
             <div className="field" style={{ flex: 1 }}>
               <label>Level</label>
-              <input
+              <NumberInput
                 className="input"
-                type="number"
                 value={editing.level}
                 onChange={(e) => setEditing({ ...editing, level: num(e.target.value) })}
               />
@@ -189,18 +189,16 @@ export function PartyPanel({ onClose }: PanelComponentProps) {
           <div className="row-gap">
             <div className="field" style={{ flex: 1 }}>
               <label>AC</label>
-              <input
+              <NumberInput
                 className="input"
-                type="number"
                 value={editing.ac}
                 onChange={(e) => setEditing({ ...editing, ac: num(e.target.value) })}
               />
             </div>
             <div className="field" style={{ flex: 1 }}>
               <label>Max HP</label>
-              <input
+              <NumberInput
                 className="input"
-                type="number"
                 value={editing.maxHp}
                 onChange={(e) => setEditing({ ...editing, maxHp: num(e.target.value) })}
               />
