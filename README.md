@@ -1,7 +1,11 @@
 # Man in the Chair
 
-A modern, local-first **PWA DM screen** for D&D 5e. Think 5etools, but visually
-modern, offline-first, and fully private — nothing leaves your browser.
+A modern, local-first **PWA DM screen** for fifth-edition tabletop RPGs. Think
+5etools, but visually modern, offline-first, and fully private — nothing leaves
+your browser.
+
+Free and open source under the [AGPL-3.0](LICENSE). No ads, no account, nothing
+locked behind a paywall.
 
 ![status: v0.1](https://img.shields.io/badge/status-v0.1-c2f04a)
 
@@ -83,7 +87,32 @@ react-three-fiber (dice), fast-xml-parser, vite-plugin-pwa.
 
 Bundled SRD content is normalized from
 [5e-bits/5e-database](https://github.com/5e-bits/5e-database) (MIT-licensed
-project). The underlying game content is Wizards of the Coast SRD, released
-under the OGL 1.0a (5.1) and CC-BY-4.0 (5.2). See `ATTRIBUTION.md`.
+project). The underlying game content is the Wizards of the Coast SRD 5.1 and
+SRD 5.2, both released under CC-BY-4.0. See `ATTRIBUTION.md`.
 
-Application code: see repository license.
+Application code is licensed under the **GNU Affero General Public License
+v3.0 only** (`AGPL-3.0-only`, see `LICENSE`). You can use, modify and host it.
+If you run a modified version for other people over a network, you must offer
+them its source code under the same license.
+
+Only SRD and original content may be committed. Never add data from published
+books or other copyrighted sources, including your own FightClub imports: those
+stay in your browser.
+
+"Man in the Chair" is the project's name; forks should use their own. This
+project is not affiliated with Wizards of the Coast.
+
+## Sample campaign
+
+Settings → **Try the sample campaign** (or open the app with `?sample`) loads a
+pre-filled session in a separate database that is wiped and reseeded on every
+load. Your own data is never read or changed. A fresh install offers it once
+from a welcome card.
+
+## Supporting the project
+
+The app is free; development is funded by donations. Set `SUPPORT_URL` and
+`SOURCE_URL` in `src/lib/support.ts`, or the `VITE_SUPPORT_URL` /
+`VITE_SOURCE_URL` environment variables at build time, to show the Support and Source code links
+in Settings and the feedback dialog, and the one-time support card (shown after
+the app has been opened on five different days, never again once dismissed).

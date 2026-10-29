@@ -8,3 +8,10 @@ declare module '*.json' {
 
 /** App version from package.json, injected by vite.config `define`. */
 declare const __APP_VERSION__: string;
+
+interface ImportMetaEnv {
+  /** Donation page shown as "Support" links (see src/lib/support.ts). */
+  readonly VITE_SUPPORT_URL?: string;
+  /** Public repository shown as "Source code" in Settings. */
+  readonly VITE_SOURCE_URL?: string;
+}

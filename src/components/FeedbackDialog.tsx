@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Dropdown } from './Dropdown';
 import { useStore } from '../store/useStore';
 import { PANEL_TITLES } from '../store/presets';
+import { SUPPORT_URL } from '../lib/support';
 import {
   FEEDBACK_CATEGORIES,
   FEEDBACK_EMAIL,
@@ -163,6 +164,11 @@ export function FeedbackDialog({ onClose }: { onClose: () => void }) {
         )}
 
         <div className="row-gap" style={{ justifyContent: 'flex-end', marginTop: 8 }}>
+          {SUPPORT_URL && (
+            <a className="feedback-support" href={SUPPORT_URL} target="_blank" rel="noopener noreferrer">
+              ♥ Enjoying it? Support development
+            </a>
+          )}
           <button className="btn ghost" onClick={onClose}>
             Cancel
           </button>

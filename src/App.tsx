@@ -26,8 +26,9 @@ import { PromptDialog } from './components/PromptDialog';
 import { SettingsMenu } from './components/SettingsMenu';
 import { useThemeStore } from './theme/useThemeStore';
 import { useDiceSetStore } from './theme/diceSets';
-import { IS_DEMO, DEMO_BLOCKED_MESSAGE } from './lib/demo';
-import { DemoBanner } from './components/DemoBanner';
+import { IS_SAMPLE, SAMPLE_BLOCKED_MESSAGE } from './lib/sample';
+import { SampleBanner } from './components/SampleBanner';
+import { CornerCard } from './components/CornerCard';
 
 // 3D overlay (three.js) is heavy — load it only when a roll happens.
 const DiceOverlay = lazy(() =>
@@ -161,7 +162,7 @@ export default function App() {
 
   return (
     <div className="app">
-      {IS_DEMO && <DemoBanner />}
+      {IS_SAMPLE && <SampleBanner />}
       <div className="topbar">
         <div className="brand">
           <span className="glyph">◆</span>
@@ -239,9 +240,9 @@ export default function App() {
         )}
 
         <button
-          className={IS_DEMO ? 'btn demo-locked' : 'btn'}
-          title={IS_DEMO ? DEMO_BLOCKED_MESSAGE : undefined}
-          onClick={() => (IS_DEMO ? showToast(DEMO_BLOCKED_MESSAGE) : setShowImport(true))}
+          className={IS_SAMPLE ? 'btn sample-locked' : 'btn'}
+          title={IS_SAMPLE ? SAMPLE_BLOCKED_MESSAGE : undefined}
+          onClick={() => (IS_SAMPLE ? showToast(SAMPLE_BLOCKED_MESSAGE) : setShowImport(true))}
         >
           Import
         </button>
@@ -283,6 +284,7 @@ export default function App() {
       {showImport && <ImportDialog onClose={() => setShowImport(false)} />}
       {showFeedback && <FeedbackDialog onClose={() => setShowFeedback(false)} />}
       <Toast />
+      <CornerCard />
       <QuickRoll />
       <CommandPalette />
       <ConfirmDialog />

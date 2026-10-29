@@ -2817,8 +2817,8 @@ select.select {
   box-shadow: 0 0 0 2px var(--accent-soft);
 }
 
-/* ---- demo mode ---- */
-.demo-banner {
+/* ---- sample campaign ---- */
+.sample-banner {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -2830,8 +2830,8 @@ select.select {
   font-size: 13px;
   flex-shrink: 0;
 }
-.demo-banner .spacer { flex: 1; }
-.demo-badge {
+.sample-banner .spacer { flex: 1; }
+.sample-badge {
   padding: 2px 8px;
   border-radius: var(--radius-pill);
   background: var(--accent);
@@ -2841,6 +2841,50 @@ select.select {
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
-.demo-text { color: var(--text-dim); }
-/* export controls stay visible in the demo, but read as unavailable */
-.btn.demo-locked { opacity: 0.5; cursor: not-allowed; }
+.sample-text { color: var(--text-dim); }
+/* export controls stay visible in the sample, but read as unavailable */
+.btn.sample-locked { opacity: 0.5; cursor: not-allowed; }
+
+/* ---- one-time corner card (welcome / support) ---- */
+.corner-card {
+  position: fixed;
+  left: 20px;
+  bottom: 20px;
+  z-index: 900;
+  width: 330px;
+  max-width: calc(100vw - 40px);
+  padding: 14px 16px;
+  background: var(--bg-elev-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+}
+.corner-card-title { font-weight: 700; font-size: 14px; margin-bottom: 6px; padding-right: 20px; }
+.corner-card-text { margin: 0 0 12px; font-size: 13px; line-height: 1.45; color: var(--text-dim); }
+.corner-card-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.corner-card-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  border: 0;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 4px 6px;
+  border-radius: 6px;
+}
+.corner-card-close:hover { color: var(--text); background: var(--border-soft); }
+
+/* support links: quiet, never competing with the main actions */
+a.btn { text-decoration: none; }
+.settings-about { margin-bottom: 6px; }
+.feedback-support {
+  margin-right: auto;
+  align-self: center;
+  font-size: 12px;
+  color: var(--text-dim);
+  text-decoration: none;
+}
+.feedback-support:hover { color: var(--text); text-decoration: underline; }

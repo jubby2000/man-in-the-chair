@@ -4,7 +4,6 @@ import type { PanelComponentProps } from '../types';
 import { getKV, setKV } from '../lib/db';
 import { useStore } from '../store/useStore';
 import { buildRecap, logIcon, logTime } from '../lib/recap';
-import { IS_DEMO, DEMO_BLOCKED_MESSAGE } from '../lib/demo';
 
 export function NotesPanel({ onClose }: PanelComponentProps) {
   const [text, setText] = useState('');
@@ -47,10 +46,6 @@ export function NotesPanel({ onClose }: PanelComponentProps) {
   };
 
   const copyRecap = async () => {
-    if (IS_DEMO) {
-      showToast(DEMO_BLOCKED_MESSAGE);
-      return;
-    }
     const md = buildRecap(sessionLog, text);
     try {
       await navigator.clipboard.writeText(md);
@@ -80,11 +75,7 @@ export function NotesPanel({ onClose }: PanelComponentProps) {
       flush
       tools={
         <>
-          <button
-            className={IS_DEMO ? 'btn sm demo-locked' : 'btn sm'}
-            onClick={copyRecap}
-            title={IS_DEMO ? DEMO_BLOCKED_MESSAGE : 'Copy a Markdown recap to paste into your own notes app'}
-          >
+          <button className="btn sm" onClick={copyRecap} title="Copy a Markdown recap to paste into your own notes app">
             {copied ? 'Copied ✓' : 'Copy recap'}
           </button>
           <button className="btn sm ghost" onClick={clearLog} title="Clear the session log">

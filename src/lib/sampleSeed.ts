@@ -1,6 +1,6 @@
-// Seed content for demo mode. Everything here is either SRD 5.1 content
-// (CC-BY-4.0, referenced by id) or original writing made for the demo — no
-// imported or published-book data, since the demo is public and its data can
+// Seed content for the sample campaign. Everything here is either SRD 5.1 content
+// (CC-BY-4.0, referenced by id) or original writing made for the sample — no
+// imported or published-book data, since the sample ships in the public build and its data can
 // always be pulled out of the browser.
 //
 // The story: "The Ashfall Road", session 7. The party is mid-fight in round 3
@@ -21,11 +21,11 @@ import type {
 import { combatantFromMonster, combatantFromParty } from './combatants';
 import { effectiveMax } from './combat';
 
-export const DEMO_TITLE = 'Ashfall Road · Session 7';
+export const SAMPLE_TITLE = 'Ashfall Road · Session 7';
 
 // ---- Pages ----
 
-export const DEMO_PRESETS: LayoutPreset[] = [
+export const SAMPLE_PRESETS: LayoutPreset[] = [
   {
     id: 'demo-1-prep',
     name: 'Prep',
@@ -69,7 +69,7 @@ const START_PRESET = 'demo-2-combat';
 
 // ---- Party (original characters) ----
 
-export const DEMO_PARTY: PartyMember[] = [
+export const SAMPLE_PARTY: PartyMember[] = [
   {
     id: 'demo-pc-korrin',
     name: 'Korrin Ashdown',
@@ -195,7 +195,7 @@ const HOMEBREW: ImportedSource = {
 
 // ---- Random tables (original) ----
 
-const DEMO_TABLES: RandomTable[] = [
+const SAMPLE_TABLES: RandomTable[] = [
   {
     id: 'demo-table-barrow',
     name: 'Barrow dressing',
@@ -228,7 +228,7 @@ const DEMO_TABLES: RandomTable[] = [
   },
 ];
 
-const DEMO_NOTES = `Ashfall Road — Session 7: the Barrow of Saint Odric
+const SAMPLE_NOTES = `Ashfall Road — Session 7: the Barrow of Saint Odric
 
 Open threads
 - Brother Aldous won't go past the lychgate. He knows more about the ring than he admits.
@@ -243,7 +243,7 @@ After tonight
 - Long rest at the abbey, if Aldous lets them in.
 - Korrin is drained (−7 max) until then.`;
 
-function demoLog(now: number): SessionLogEntry[] {
+function sampleLog(now: number): SessionLogEntry[] {
   const at = (minutesAgo: number) => now - minutesAgo * 60_000;
   let n = 0;
   const e = (minutesAgo: number, text: string, kind: SessionLogEntry['kind'], event?: SessionLogEntry['event']): SessionLogEntry => ({
@@ -274,7 +274,7 @@ function entry(c: Compendium, id: string, count: number) {
   return m ? [{ monsterId: m.id, name: m.name, count, cr: m.cr, xp: m.xp ?? 0, source: m.source ?? 'srd51' }] : [];
 }
 
-function demoEncounters(c: Compendium): Encounter[] {
+function sampleEncounters(c: Compendium): Encounter[] {
   return [
     { id: 'demo-enc-ossuary', name: 'Ossuary ambush', entries: [...entry(c, 'ghast', 1), ...entry(c, 'ghoul', 3)] },
     {
@@ -287,7 +287,7 @@ function demoEncounters(c: Compendium): Encounter[] {
 
 // ---- The fight in progress ----
 
-function demoCombat(c: Compendium, party: PartyMember[]): Combatant[] {
+function sampleCombat(c: Compendium, party: PartyMember[]): Combatant[] {
   const monster = (id: string) => c.monsters.find((m) => m.id === id);
   const pc = (id: string) => party.find((p) => p.id === id);
   const out: Combatant[] = [];
@@ -324,32 +324,32 @@ function demoCombat(c: Compendium, party: PartyMember[]): Combatant[] {
 // ---- Seeding ----
 
 /**
- * Wipe the demo database and write the seed. Memoized per page load, so React
+ * Wipe the sample database and write the seed. Memoized per page load, so React
  * StrictMode's double init can't seed twice concurrently.
  */
 let seeding: Promise<void> | null = null;
-export function seedDemoDb(): Promise<void> {
+export function seedSampleDb(): Promise<void> {
   seeding ??= db.transaction('rw', [db.imports, db.layouts, db.party, db.kv], async () => {
     await Promise.all([db.imports.clear(), db.layouts.clear(), db.party.clear(), db.kv.clear()]);
     await db.imports.put(HOMEBREW);
-    await db.layouts.bulkPut(DEMO_PRESETS);
-    await db.party.bulkPut(DEMO_PARTY);
+    await db.layouts.bulkPut(SAMPLE_PRESETS);
+    await db.party.bulkPut(SAMPLE_PARTY);
     await db.kv.bulkPut([
       { key: 'edition', value: 'srd51' },
       { key: 'activePresetId', value: START_PRESET },
-      { key: 'displayName', value: DEMO_TITLE },
-      { key: 'sessionLog', value: demoLog(Date.now()) },
-      { key: 'notes', value: DEMO_NOTES },
-      { key: 'customTables', value: DEMO_TABLES },
+      { key: 'displayName', value: SAMPLE_TITLE },
+      { key: 'sessionLog', value: sampleLog(Date.now()) },
+      { key: 'notes', value: SAMPLE_NOTES },
+      { key: 'customTables', value: SAMPLE_TABLES },
     ]);
   });
   return seeding;
 }
 
 /** In-memory state (combat, encounters, selection) layered on after init. */
-export function demoRuntimeState(c: Compendium, party: PartyMember[]) {
-  const combatants = demoCombat(c, party);
-  const encounters = demoEncounters(c);
+export function sampleRuntimeState(c: Compendium, party: PartyMember[]) {
+  const combatants = sampleCombat(c, party);
+  const encounters = sampleEncounters(c);
   return {
     combatants,
     round: 3,

@@ -4,7 +4,8 @@ import { DiceSetPicker } from './DiceSetPicker';
 import { Dropdown } from './Dropdown';
 import { useStore } from '../store/useStore';
 import { downloadBackup, restoreBackup, BackupError } from '../lib/backup';
-import { IS_DEMO, DEMO_BLOCKED_MESSAGE } from '../lib/demo';
+import { IS_SAMPLE, SAMPLE_BLOCKED_MESSAGE, openSampleCampaign, leaveSampleCampaign } from '../lib/sample';
+import { LICENSE_NAME, SOURCE_URL, SUPPORT_URL } from '../lib/support';
 import type { Edition } from '../types';
 
 /** Gear menu consolidating appearance/config controls so the top bar stays lean. */
@@ -116,12 +117,12 @@ export function SettingsMenu() {
           <div className="settings-row">
             <label className="settings-label">Data</label>
             <div className="settings-data">
-              {IS_DEMO ? (
+              {IS_SAMPLE ? (
                 <>
-                  <button className="btn sm demo-locked" onClick={() => showToast(DEMO_BLOCKED_MESSAGE)}>
+                  <button className="btn sm sample-locked" onClick={() => showToast(SAMPLE_BLOCKED_MESSAGE)}>
                     Download backup
                   </button>
-                  <button className="btn sm demo-locked" onClick={() => showToast(DEMO_BLOCKED_MESSAGE)}>
+                  <button className="btn sm sample-locked" onClick={() => showToast(SAMPLE_BLOCKED_MESSAGE)}>
                     Restore…
                   </button>
                 </>
@@ -144,10 +145,49 @@ export function SettingsMenu() {
               )}
             </div>
             <div className="settings-hint">
-              {IS_DEMO
-                ? 'Backup and restore are turned off in the demo. Everything here resets when you reload.'
+              {IS_SAMPLE
+                ? 'You’re in the sample campaign, which resets on reload. Backups are for your own campaign.'
                 : 'Everything lives in this browser. Download a backup regularly, or before switching browsers/devices — a backup file restores all your data.'}
             </div>
+          </div>
+          <div className="settings-row">
+            <label className="settings-label">Sample</label>
+            <div className="settings-data">
+              {IS_SAMPLE ? (
+                <button className="btn sm primary" onClick={leaveSampleCampaign}>
+                  Back to my campaign
+                </button>
+              ) : (
+                <button className="btn sm" onClick={openSampleCampaign}>
+                  Try the sample campaign
+                </button>
+              )}
+            </div>
+            {!IS_SAMPLE && (
+              <div className="settings-hint">
+                A finished-looking session to explore. It opens separately and never touches your data.
+              </div>
+            )}
+          </div>
+          <div className="settings-row">
+            <label className="settings-label">About</label>
+            <div className="settings-hint settings-about">
+              Free and open source under the {LICENSE_NAME} license. No ads, no account, nothing locked.
+            </div>
+            {(SOURCE_URL || SUPPORT_URL) && (
+              <div className="settings-data">
+                {SOURCE_URL && (
+                  <a className="btn sm" href={SOURCE_URL} target="_blank" rel="noopener noreferrer">
+                    Source code
+                  </a>
+                )}
+                {SUPPORT_URL && (
+                  <a className="btn sm" href={SUPPORT_URL} target="_blank" rel="noopener noreferrer">
+                    ♥ Support development
+                  </a>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}

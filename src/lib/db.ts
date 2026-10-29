@@ -1,6 +1,6 @@
 import Dexie, { type Table } from 'dexie';
 import type { ImportedSource, LayoutPreset, PartyMember } from '../types';
-import { IS_DEMO, DEMO_DB_NAME } from './demo';
+import { IS_SAMPLE, SAMPLE_DB_NAME } from './sample';
 
 export interface KVRecord {
   key: string;
@@ -15,8 +15,8 @@ export class MitCDatabase extends Dexie {
   kv!: Table<KVRecord, string>;
 
   constructor() {
-    // the demo gets its own database so it can never read or overwrite real data
-    super(IS_DEMO ? DEMO_DB_NAME : 'man-in-the-chair');
+    // the sample campaign gets its own database so it can never read or overwrite real data
+    super(IS_SAMPLE ? SAMPLE_DB_NAME : 'man-in-the-chair');
     this.version(1).stores({
       imports: 'id, name, importedAt',
       layouts: 'id, name',
