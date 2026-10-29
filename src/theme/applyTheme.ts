@@ -83,6 +83,10 @@ export function applyTheme(theme: VSCodeTheme): void {
     '--panel-header': panelHeader,
     '--popover': popover,
     '--popover-border': popoverBorder,
+    // a tight contact shadow plus a soft spread, so popups lift off any panel
+    '--popover-shadow': isDark
+      ? '0 0 0 1px rgba(0, 0, 0, 0.35), 0 4px 10px rgba(0, 0, 0, 0.5), 0 18px 44px rgba(0, 0, 0, 0.6)'
+      : '0 2px 6px rgba(20, 30, 50, 0.12), 0 14px 34px rgba(20, 30, 50, 0.18)',
     '--border': border,
     '--border-soft': borderSoft,
     '--text': fg,

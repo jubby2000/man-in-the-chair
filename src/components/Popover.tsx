@@ -31,7 +31,13 @@ export function Popover({
   children,
 }: PopoverProps) {
   const popRef = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState<{ top: number; left?: number; right?: number; maxHeight?: number } | null>(null);
+  const [pos, setPos] = useState<{
+    top: number;
+    left?: number;
+    right?: number;
+    maxHeight?: number;
+    scroll: boolean;
+  } | null>(null);
   const measured = useRef(false);
 
   // Position against the anchor. For bottom placement, flip above the anchor
@@ -65,10 +71,14 @@ export function Popover({
     const w = popRef.current?.offsetWidth ?? 0;
     const maxStart = Math.max(margin, window.innerWidth - margin - w);
     const clamp = (v: number) => Math.min(Math.max(v, margin), maxStart);
+    // Only clip (scroll) when the content really doesn't fit: a scrolling box
+    // clips everything outside its rectangle, which cut off the popover's own
+    // shadow and left dark square corners behind its rounded ones.
+    const scroll = maxHeight !== undefined && h > maxHeight;
     if (align === 'right') {
-      setPos({ top, right: clamp(window.innerWidth - r.right), maxHeight });
+      setPos({ top, right: clamp(window.innerWidth - r.right), maxHeight, scroll });
     } else {
-      setPos({ top, left: clamp(r.left), maxHeight });
+      setPos({ top, left: clamp(r.left), maxHeight, scroll });
     }
   }, [anchorRef, align, placement]);
 
@@ -123,8 +133,8 @@ export function Popover({
         top: pos.top,
         left: pos.left,
         right: pos.right,
-        maxHeight: pos.maxHeight,
-        overflowY: pos.maxHeight !== undefined ? 'auto' : undefined,
+        maxHeight: pos.scroll ? pos.maxHeight : undefined,
+        overflowY: pos.scroll ? 'auto' : undefined,
         transform: placement === 'top' ? 'translateY(-100%)' : undefined,
       }}
     >
