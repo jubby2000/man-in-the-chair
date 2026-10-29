@@ -331,7 +331,6 @@ export function InitiativePanel({ onClose }: PanelComponentProps) {
                           ref={hpInputRef}
                           className="hp-pop-amount"
                           inputMode="numeric"
-                          placeholder="0"
                           aria-label={`Amount for ${c.name}`}
                           value={hpAmount}
                           onChange={(e) => setHpAmount(e.target.value.replace(/[^0-9]/g, ''))}

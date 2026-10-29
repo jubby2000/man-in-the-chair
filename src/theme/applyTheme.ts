@@ -69,6 +69,11 @@ export function applyTheme(theme: VSCodeTheme): void {
   const borderSoft = c['editorGroup.border'] ?? up(bg, isDark ? 0.09 : 0.08);
   const textDim = c['descriptionForeground'] ?? mix(fg, bg, 0.4);
   const textFaint = c['disabledForeground'] ?? mix(fg, bg, 0.62);
+  // Floating popups get their own surface, always derived (never a theme key):
+  // themes often reuse one color for panel, widget and border (Nord does), which
+  // made popups blend into the panel behind them with no visible edge.
+  const popover = isDark ? mix(panel, fg, 0.07) : mix(panel, '#ffffff', 0.7);
+  const popoverBorder = mix(panel, fg, isDark ? 0.2 : 0.16);
 
   const vars: Record<string, string> = {
     '--bg': bg,
@@ -76,6 +81,8 @@ export function applyTheme(theme: VSCodeTheme): void {
     '--bg-elev-2': bgElev2,
     '--panel': panel,
     '--panel-header': panelHeader,
+    '--popover': popover,
+    '--popover-border': popoverBorder,
     '--border': border,
     '--border-soft': borderSoft,
     '--text': fg,

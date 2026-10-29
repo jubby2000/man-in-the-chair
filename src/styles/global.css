@@ -7,6 +7,8 @@
   --bg-elev-2: #16181d;
   --panel: #0e0f12;
   --panel-header: #121317;
+  --popover: #1b1c20;       /* raised popup surface (themes derive their own) */
+  --popover-border: #34363c;
   --border: #212329;
   --border-soft: #191b1f;
   --text: #f3f5f7;
@@ -2933,4 +2935,39 @@ input[type='number']::-webkit-outer-spin-button { -webkit-appearance: none; marg
 .num-steps svg { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 @media (prefers-reduced-motion: reduce) {
   .num-steps { transition: none; }
+}
+
+/* ---- popups: a raised card with a visible edge in every theme ----
+   (--popover / --popover-border are derived per theme in applyTheme.ts) */
+.hp-pop,
+.cond-popover,
+.dropdown-menu {
+  background: var(--popover);
+  border-color: var(--popover-border);
+}
+.dropdown-opt:hover { background: var(--popover-border); }
+/* the amount field: no placeholder digit under the centred caret */
+.hp-pop-amount { background: var(--bg-elev); }
+/* buttons waiting for an amount: quieter, but not washed out */
+.hp-pop .btn:disabled { opacity: 0.6; }
+/* key hints look like keys */
+.hp-pop-hint kbd {
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: var(--bg-elev);
+  color: var(--text-dim);
+}
+/* small number fields (Set HP, Max −, group amounts) match the app's rounded inputs */
+.amt-input,
+.hp-track .amt-input {
+  width: 52px;
+  padding: 3px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-elev);
+  font-variant-numeric: tabular-nums;
 }

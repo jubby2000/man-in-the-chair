@@ -59,10 +59,16 @@ export function Popover({
         top = r.bottom + gap;
       }
     }
+    // Horizontal: line up with the anchor's left (or right) edge, then shift
+    // back inside the window if that would run off either side, e.g. a popover
+    // opened from a panel at the screen's right edge.
+    const w = popRef.current?.offsetWidth ?? 0;
+    const maxStart = Math.max(margin, window.innerWidth - margin - w);
+    const clamp = (v: number) => Math.min(Math.max(v, margin), maxStart);
     if (align === 'right') {
-      setPos({ top, right: Math.max(margin, window.innerWidth - r.right), maxHeight });
+      setPos({ top, right: clamp(window.innerWidth - r.right), maxHeight });
     } else {
-      setPos({ top, left: Math.max(margin, r.left), maxHeight });
+      setPos({ top, left: clamp(r.left), maxHeight });
     }
   }, [anchorRef, align, placement]);
 
@@ -78,7 +84,7 @@ export function Popover({
     };
   }, [open, place]);
 
-  // The first placement happens before the popover exists, so its height is
+  // The first placement happens before the popover exists, so its size is
   // unknown; re-place once it has rendered and can be measured.
   useLayoutEffect(() => {
     if (open && pos && popRef.current && !measured.current) {
