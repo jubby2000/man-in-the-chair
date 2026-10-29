@@ -102,6 +102,12 @@ stay in your browser.
 "Man in the Chair" is the project's name; forks should use their own. This
 project is not affiliated with Wizards of the Coast.
 
+## Contributing
+
+See `CONTRIBUTING.md`. Code contributions require agreeing to the
+[Contributor License Agreement](CLA.md). You keep your copyright, and your work
+stays available under an open source license.
+
 ## Sample campaign
 
 Settings → **Try the sample campaign** (or open the app with `?sample`) loads a
