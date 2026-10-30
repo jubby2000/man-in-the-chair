@@ -1163,10 +1163,12 @@ select.select {
   padding: 16px 12px;
   height: 100%;
   justify-content: center;
+  /* size the digits from the panel, not the window, so a small panel never clips them */
+  container-type: size;
 }
 .timer-display {
   font-family: var(--font-mono);
-  font-size: clamp(48px, 18vw, 120px);
+  font-size: clamp(36px, min(24cqw, 36cqh), 140px);
   font-weight: 700;
   line-height: 1;
   color: var(--text);

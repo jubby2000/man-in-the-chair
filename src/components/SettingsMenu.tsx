@@ -3,6 +3,7 @@ import { ThemePicker } from './ThemePicker';
 import { DiceSetPicker } from './DiceSetPicker';
 import { Dropdown } from './Dropdown';
 import { useStore } from '../store/useStore';
+import { defaultPresetFor } from '../store/presets';
 import { downloadBackup, restoreBackup, BackupError } from '../lib/backup';
 import { IS_SAMPLE, SAMPLE_BLOCKED_MESSAGE, openSampleCampaign, leaveSampleCampaign } from '../lib/sample';
 import { LICENSE_NAME, SOURCE_URL, SUPPORT_URL } from '../lib/support';
@@ -16,10 +17,43 @@ export function SettingsMenu() {
   const setDisplayName = useStore((s) => s.setDisplayName);
   const confirm = useStore((s) => s.confirm);
   const showToast = useStore((s) => s.showToast);
+  const presets = useStore((s) => s.presets);
+  const activePresetId = useStore((s) => s.activePresetId);
+  const resetPreset = useStore((s) => s.resetPreset);
+  const restoreDefaultPresets = useStore((s) => s.restoreDefaultPresets);
   const [open, setOpen] = useState(false);
   const [titleDraft, setTitleDraft] = useState(displayName);
   const ref = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const activePreset = presets.find((p) => p.id === activePresetId);
+  const activeIsBuiltIn = !!activePreset && !!defaultPresetFor(activePreset.id);
+
+  const onResetThisTab = async () => {
+    if (!activePreset) return;
+    const ok = await confirm({
+      title: `Reset “${activePreset.name}” layout?`,
+      message: 'Panels on this tab go back to their original arrangement. Your data is not affected.',
+      confirmLabel: 'Reset layout',
+      danger: true,
+    });
+    if (!ok) return;
+    resetPreset(activePreset.id);
+    showToast(`${activePreset.name} layout reset`);
+  };
+
+  const onRestoreAllTabs = async () => {
+    const ok = await confirm({
+      title: 'Restore default tabs?',
+      message:
+        'Prep, Combat, Reference and Tools go back to their original panels and arrangement (and come back if you deleted them). Tabs you created yourself are left alone. Your data is not affected.',
+      confirmLabel: 'Restore tabs',
+      danger: true,
+    });
+    if (!ok) return;
+    restoreDefaultPresets();
+    showToast('Default tabs restored');
+  };
 
   const onRestoreFile = async (file: File | undefined) => {
     if (fileRef.current) fileRef.current.value = ''; // allow re-picking the same file
@@ -114,6 +148,27 @@ export function SettingsMenu() {
             <label className="settings-label">Dice set</label>
             <DiceSetPicker />
           </div>
+          {!IS_SAMPLE && (
+            <div className="settings-row">
+              <label className="settings-label">Layout</label>
+              <div className="settings-data">
+                <button
+                  className="btn sm"
+                  disabled={!activeIsBuiltIn}
+                  title={activeIsBuiltIn ? undefined : 'Only the built-in tabs have a default layout'}
+                  onClick={() => void onResetThisTab()}
+                >
+                  Reset this tab
+                </button>
+                <button className="btn sm" onClick={() => void onRestoreAllTabs()}>
+                  Restore all default tabs
+                </button>
+              </div>
+              <div className="settings-hint">
+                Puts the built-in tabs back to their original panels and arrangement. Your own tabs and all your data stay as they are.
+              </div>
+            </div>
+          )}
           <div className="settings-row">
             <label className="settings-label">Data</label>
             <div className="settings-data">

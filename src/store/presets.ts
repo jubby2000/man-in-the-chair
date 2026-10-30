@@ -36,7 +36,7 @@ export function placeNewPanel(items: GridItem[], panel: PanelType): GridItem {
   return { i: panel, panel, x, y, w, h };
 }
 
-// 12-column grid. Three starter presets the DM can switch between mid-session.
+// 12-column grid. Four starter presets the DM can switch between mid-session.
 export const DEFAULT_PRESETS: LayoutPreset[] = [
   {
     id: 'preset-prep',
@@ -53,10 +53,10 @@ export const DEFAULT_PRESETS: LayoutPreset[] = [
     name: 'Combat',
     items: [
       { i: 'initiative', panel: 'initiative', x: 0, y: 0, w: 4, h: 12 },
-      { i: 'statblock', panel: 'statblock', x: 4, y: 0, w: 5, h: 8 },
-      { i: 'dice', panel: 'dice', x: 4, y: 8, w: 5, h: 4 },
+      { i: 'statblock', panel: 'statblock', x: 4, y: 0, w: 5, h: 7 },
+      { i: 'dice', panel: 'dice', x: 4, y: 7, w: 5, h: 5 },
       { i: 'party', panel: 'party', x: 9, y: 0, w: 3, h: 6 },
-      { i: 'compendium', panel: 'compendium', x: 9, y: 6, w: 3, h: 6 },
+      { i: 'timer', panel: 'timer', x: 9, y: 6, w: 3, h: 6 },
     ],
   },
   {
@@ -72,9 +72,10 @@ export const DEFAULT_PRESETS: LayoutPreset[] = [
     id: 'preset-tools',
     name: 'Tools',
     items: [
-      { i: 'generators', panel: 'generators', x: 0, y: 0, w: 5, h: 12 },
-      { i: 'statblock', panel: 'statblock', x: 5, y: 0, w: 4, h: 12 },
-      { i: 'notes', panel: 'notes', x: 9, y: 0, w: 3, h: 12 },
+      { i: 'generators', panel: 'generators', x: 0, y: 0, w: 4, h: 12 },
+      { i: 'tables', panel: 'tables', x: 4, y: 0, w: 4, h: 12 },
+      { i: 'statblock', panel: 'statblock', x: 8, y: 0, w: 4, h: 7 },
+      { i: 'notes', panel: 'notes', x: 8, y: 7, w: 4, h: 5 },
     ],
   },
 ];
@@ -93,3 +94,13 @@ export const PANEL_TITLES: Record<string, string> = {
   embed: 'Embed',
   tables: 'Tables',
 };
+
+/** The built-in layout for a default tab id, or undefined for a custom tab. */
+export function defaultPresetFor(id: string): LayoutPreset | undefined {
+  return DEFAULT_PRESETS.find((p) => p.id === id);
+}
+
+/** A fresh copy, so callers can never mutate the shared defaults. */
+export function cloneItems(items: GridItem[]): GridItem[] {
+  return items.map((it) => ({ ...it }));
+}

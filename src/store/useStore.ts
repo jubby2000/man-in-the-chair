@@ -22,7 +22,7 @@ import { IS_SAMPLE } from '../lib/sample';
 import { seedSampleDb, sampleRuntimeState } from '../lib/sampleSeed';
 import { requestPersistentStorage } from '../lib/backup';
 import { parseAndRoll, countPhysicalDice, MAX_DICE, type RollResult } from '../lib/dice';
-import { DEFAULT_PRESETS, placeNewPanel } from './presets';
+import { DEFAULT_PRESETS, placeNewPanel, defaultPresetFor, cloneItems } from './presets';
 import { combatantFromMonster, uniqueName } from '../lib/combatants';
 import {
   applyHit,
@@ -202,6 +202,10 @@ interface AppState {
   addPreset: (name: string) => void;
   removePreset: (id: string) => void;
   renamePreset: (id: string, name: string) => void;
+  /** Put one built-in tab back to its original layout. Returns false for a custom tab. */
+  resetPreset: (id: string) => boolean;
+  /** Restore every built-in tab (re-creating deleted ones); custom tabs are untouched. */
+  restoreDefaultPresets: () => void;
   /** Ensure a panel type is present in the active preset; adds it if missing. */
   ensurePanel: (panel: PanelType) => void;
 }
@@ -804,6 +808,29 @@ export const useStore = create<AppState>((set, get) => ({
       const presets = s.presets.map((p) => (p.id === id ? { ...p, name } : p));
       const updated = presets.find((p) => p.id === id);
       if (updated) void db.layouts.put(updated);
+      return { presets };
+    });
+  },
+
+  resetPreset: (id) => {
+    const def = defaultPresetFor(id);
+    if (!def) return false;
+    set((s) => {
+      const fresh: LayoutPreset = { ...def, items: cloneItems(def.items) };
+      const exists = s.presets.some((p) => p.id === id);
+      void db.layouts.put(fresh);
+      return { presets: exists ? s.presets.map((p) => (p.id === id ? fresh : p)) : [...s.presets, fresh] };
+    });
+    return true;
+  },
+
+  restoreDefaultPresets: () => {
+    set((s) => {
+      const fresh = DEFAULT_PRESETS.map((d): LayoutPreset => ({ ...d, items: cloneItems(d.items) }));
+      void db.layouts.bulkPut(fresh);
+      const defaultIds = new Set(fresh.map((d) => d.id));
+      // built-ins first, in their original order, then the user's own tabs
+      const presets = [...fresh, ...s.presets.filter((p) => !defaultIds.has(p.id))];
       return { presets };
     });
   },
