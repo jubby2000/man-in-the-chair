@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { getKV, setKV } from '../lib/db';
+import { getPref, setPref, onPrefChangedElsewhere } from '../lib/db';
 
 // A dice "set" is a visual skin for the physical dice, independent of the app
 // theme. Each set defines the body material and number styling. Per-die-type
@@ -147,6 +147,8 @@ async function autoContrastInk(dataUrl: string): Promise<{ ink: string; outline:
 interface DiceSetState {
   setId: string;
   customSets: DiceSet[];
+  /** true once the saved choice has been read; the tray waits for it */
+  loaded: boolean;
   all: () => DiceSet[];
   current: () => DiceSet;
   init: () => Promise<void>;
@@ -156,19 +158,29 @@ interface DiceSetState {
   renameCustomSet: (id: string, name: string) => void;
 }
 
+let listening = false;
+
 export const useDiceSetStore = create<DiceSetState>((set, get) => ({
   setId: 'arcane',
   customSets: [],
+  loaded: false,
   all: () => [...DICE_SETS, ...get().customSets],
   current: () => diceSetById(get().setId, get().customSets),
   init: async () => {
-    const setId = await getKV<string>('diceSetId', 'arcane');
-    const customSets = await getKV<DiceSet[]>('customDiceSets', []);
-    set({ setId, customSets });
+    const setId = await getPref<string>('diceSetId', 'arcane');
+    const customSets = await getPref<DiceSet[]>('customDiceSets', []);
+    set({ setId, customSets, loaded: true });
+    // another tab/window picked a set: follow it, so both roll the same dice
+    if (!listening) {
+      listening = true;
+      onPrefChangedElsewhere((key) => {
+        if (key === 'diceSetId' || key === 'customDiceSets') void get().init();
+      });
+    }
   },
   setDiceSet: (id) => {
     set({ setId: id });
-    void setKV('diceSetId', id);
+    void setPref('diceSetId', id);
   },
   addCustomSet: async (name, dataUrl) => {
     const { ink, outline } = await autoContrastInk(dataUrl);
@@ -186,22 +198,22 @@ export const useDiceSetStore = create<DiceSetState>((set, get) => ({
     };
     const customSets = [...get().customSets, diceSet];
     set({ customSets, setId: diceSet.id });
-    await setKV('customDiceSets', customSets);
-    void setKV('diceSetId', diceSet.id);
+    await setPref('customDiceSets', customSets);
+    void setPref('diceSetId', diceSet.id);
     return diceSet;
   },
   removeCustomSet: (id) => {
     const customSets = get().customSets.filter((s) => s.id !== id);
     const setId = get().setId === id ? 'arcane' : get().setId;
     set({ customSets, setId });
-    void setKV('customDiceSets', customSets);
-    void setKV('diceSetId', setId);
+    void setPref('customDiceSets', customSets);
+    void setPref('diceSetId', setId);
   },
   renameCustomSet: (id, name) => {
     const trimmed = name.trim();
     if (!trimmed) return;
     const customSets = get().customSets.map((s) => (s.id === id ? { ...s, name: trimmed } : s));
     set({ customSets });
-    void setKV('customDiceSets', customSets);
+    void setPref('customDiceSets', customSets);
   },
 }));

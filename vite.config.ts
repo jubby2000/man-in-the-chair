@@ -37,12 +37,10 @@ export default defineConfig({
   build: {
     chunkSizeWarningLimit: 900,
     rollupOptions: {
-      output: {
-        manualChunks: {
-          three: ['three', '@react-three/fiber', '@react-three/drei'],
-          vendor: ['react', 'react-dom', 'zustand', 'dexie', 'react-grid-layout'],
-        },
-      },
+      // No manualChunks: hand-split three/vendor chunks shared helper modules
+      // (prop-types et al.) and formed a circular import that ran vendor before
+      // its dependencies -> "reading 'bool'" and a blank page in production.
+      // Rollup's own split keeps three.js in the lazily loaded dice overlay.
     },
   },
 });

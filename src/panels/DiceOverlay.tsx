@@ -379,6 +379,7 @@ export function DiceOverlay() {
   const clearDice = useStore((s) => s.clearDice);
   const recordLanded = useStore((s) => s.recordLanded);
   const diceSet = useDiceSetStore((s) => s.current());
+  const diceSetLoaded = useDiceSetStore((s) => s.loaded);
   const [landed, setLanded] = useState<{ total: number; values: number[] } | null>(null);
   const [muted, setMuted] = useState(isDiceMuted());
 
@@ -386,7 +387,8 @@ export function DiceOverlay() {
     setLanded(null);
   }, [result]);
 
-  if (!result) return null;
+  // wait for the saved dice set, so a roll right after load isn't thrown in the default
+  if (!result || !diceSetLoaded) return null;
 
   return (
     <div className="dice-overlay" onClick={clearDice} role="button" aria-label="Dismiss roll">

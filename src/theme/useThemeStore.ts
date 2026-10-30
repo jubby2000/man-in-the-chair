@@ -1,7 +1,9 @@
 import { create } from 'zustand';
 import { BUILT_IN_THEMES, type VSCodeTheme } from './themes';
 import { applyTheme } from './applyTheme';
-import { getKV, setKV } from '../lib/db';
+import { getPref, setPref, onPrefChangedElsewhere } from '../lib/db';
+
+let listening = false;
 
 interface ThemeState {
   themeId: string;
@@ -26,23 +28,29 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
   },
 
   init: async () => {
-    const themeId = await getKV<string>('themeId', 'monera');
-    const customThemes = await getKV<VSCodeTheme[]>('customThemes', []);
+    const themeId = await getPref<string>('themeId', 'monera');
+    const customThemes = await getPref<VSCodeTheme[]>('customThemes', []);
     set({ themeId, customThemes });
     applyTheme(get().current());
+    if (!listening) {
+      listening = true;
+      onPrefChangedElsewhere((key) => {
+        if (key === 'themeId' || key === 'customThemes') void get().init();
+      });
+    }
   },
 
   setTheme: (id) => {
     set({ themeId: id });
-    void setKV('themeId', id);
+    void setPref('themeId', id);
     applyTheme(get().current());
   },
 
   addCustomTheme: (theme) => {
     const customThemes = [...get().customThemes.filter((t) => t.id !== theme.id), theme];
     set({ customThemes, themeId: theme.id });
-    void setKV('customThemes', customThemes);
-    void setKV('themeId', theme.id);
+    void setPref('customThemes', customThemes);
+    void setPref('themeId', theme.id);
     applyTheme(theme);
   },
 
@@ -50,8 +58,8 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
     const customThemes = get().customThemes.filter((t) => t.id !== id);
     const themeId = get().themeId === id ? 'monera' : get().themeId;
     set({ customThemes, themeId });
-    void setKV('customThemes', customThemes);
-    void setKV('themeId', themeId);
+    void setPref('customThemes', customThemes);
+    void setPref('themeId', themeId);
     applyTheme(get().current());
   },
 }));
