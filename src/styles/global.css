@@ -2232,6 +2232,11 @@ select.select {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  /* taller than the window? scroll inside the menu instead of running off screen */
+  max-height: calc(100vh - 90px);
+  max-height: calc(100dvh - 90px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .settings-row {
   display: flex;
@@ -2901,6 +2906,16 @@ select.select {
 a.btn { text-decoration: none; }
 .settings-about { margin-bottom: 6px; }
 .settings-credit a { color: var(--accent-2); text-decoration: underline; }
+.about-modal { width: min(480px, 92vw); }
+.about-text { color: var(--text-dim); font-size: 13px; line-height: 1.55; margin: 0 0 10px; }
+.about-heading {
+  margin: 4px 0 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-faint);
+}
 .feedback-support {
   margin-right: auto;
   align-self: center;

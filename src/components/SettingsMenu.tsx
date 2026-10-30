@@ -7,7 +7,7 @@ import { defaultPresetFor } from '../store/presets';
 import { downloadBackup, downloadSnapshot, restoreBackup, BackupError } from '../lib/backup';
 import { listSnapshots, getSnapshot, deleteSnapshot, type SnapshotInfo } from '../lib/dbGuard';
 import { IS_SAMPLE, SAMPLE_BLOCKED_MESSAGE, openSampleCampaign, leaveSampleCampaign } from '../lib/sample';
-import { LICENSE_NAME, SOURCE_URL, SUPPORT_URL } from '../lib/support';
+import { AboutDialog } from './AboutDialog';
 import type { Edition } from '../types';
 
 /** Gear menu consolidating appearance/config controls so the top bar stays lean. */
@@ -23,6 +23,7 @@ export function SettingsMenu() {
   const resetPreset = useStore((s) => s.resetPreset);
   const restoreDefaultPresets = useStore((s) => s.restoreDefaultPresets);
   const [open, setOpen] = useState(false);
+  const [showAbout, setShowAbout] = useState(false);
   const [titleDraft, setTitleDraft] = useState(displayName);
   const ref = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -274,43 +275,21 @@ export function SettingsMenu() {
           </div>
           <div className="settings-row">
             <label className="settings-label">About</label>
-            <div className="settings-hint settings-about">
-              Free and open source under the {LICENSE_NAME} license. No ads, no account, nothing locked.
+            <div className="settings-data">
+              <button
+                className="btn sm"
+                onClick={() => {
+                  setOpen(false);
+                  setShowAbout(true);
+                }}
+              >
+                About &amp; credits…
+              </button>
             </div>
-            <div className="settings-hint settings-about settings-credit">
-              This work includes material from the System Reference Documents 5.1 and 5.2 by Wizards of the Coast
-              LLC, available at{' '}
-              <a href="https://dnd.wizards.com/resources/systems-reference-document" target="_blank" rel="noopener noreferrer">
-                dnd.wizards.com
-              </a>{' '}
-              and{' '}
-              <a href="https://www.dndbeyond.com/srd" target="_blank" rel="noopener noreferrer">
-                dndbeyond.com/srd
-              </a>
-              , licensed under the{' '}
-              <a href="https://creativecommons.org/licenses/by/4.0/legalcode" target="_blank" rel="noopener noreferrer">
-                Creative Commons Attribution 4.0 International License
-              </a>
-              . Reformatted for use in this app. Unofficial fan content, not affiliated with or endorsed by Wizards of
-              the Coast.
-            </div>
-            {(SOURCE_URL || SUPPORT_URL) && (
-              <div className="settings-data">
-                {SOURCE_URL && (
-                  <a className="btn sm" href={SOURCE_URL} target="_blank" rel="noopener noreferrer">
-                    Source code
-                  </a>
-                )}
-                {SUPPORT_URL && (
-                  <a className="btn sm" href={SUPPORT_URL} target="_blank" rel="noopener noreferrer">
-                    ♥ Support development
-                  </a>
-                )}
-              </div>
-            )}
           </div>
         </div>
       )}
+      {showAbout && <AboutDialog onClose={() => setShowAbout(false)} />}
     </div>
   );
 }
