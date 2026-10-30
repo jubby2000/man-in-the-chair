@@ -4,7 +4,8 @@ import { DiceSetPicker } from './DiceSetPicker';
 import { Dropdown } from './Dropdown';
 import { useStore } from '../store/useStore';
 import { defaultPresetFor } from '../store/presets';
-import { downloadBackup, restoreBackup, BackupError } from '../lib/backup';
+import { downloadBackup, downloadSnapshot, restoreBackup, BackupError } from '../lib/backup';
+import { listSnapshots, getSnapshot, deleteSnapshot, type SnapshotInfo } from '../lib/dbGuard';
 import { IS_SAMPLE, SAMPLE_BLOCKED_MESSAGE, openSampleCampaign, leaveSampleCampaign } from '../lib/sample';
 import { LICENSE_NAME, SOURCE_URL, SUPPORT_URL } from '../lib/support';
 import type { Edition } from '../types';
@@ -25,6 +26,35 @@ export function SettingsMenu() {
   const [titleDraft, setTitleDraft] = useState(displayName);
   const ref = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // safety copies the app made before a past database upgrade (usually none)
+  const [snapshots, setSnapshots] = useState<SnapshotInfo[]>([]);
+  useEffect(() => {
+    if (!open || IS_SAMPLE) return;
+    let cancelled = false;
+    void listSnapshots().then((s) => !cancelled && setSnapshots(s));
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
+
+  const onDownloadSnapshot = async (snap: SnapshotInfo) => {
+    const backup = await getSnapshot(snap.id);
+    if (!backup) return showToast('That safety copy is no longer available.');
+    downloadSnapshot(snap.id, backup);
+  };
+
+  const onDeleteSnapshot = async (snap: SnapshotInfo) => {
+    const ok = await confirm({
+      title: 'Delete safety copy?',
+      message: 'This removes the copy of your data saved before the update. Your current data is not affected.',
+      confirmLabel: 'Delete',
+      danger: true,
+    });
+    if (!ok) return;
+    await deleteSnapshot(snap.id);
+    setSnapshots(await listSnapshots());
+  };
 
   const activePreset = presets.find((p) => p.id === activePresetId);
   const activeIsBuiltIn = !!activePreset && !!defaultPresetFor(activePreset.id);
@@ -204,6 +234,24 @@ export function SettingsMenu() {
                 ? 'You’re in the sample campaign, which resets on reload. Backups are for your own campaign.'
                 : 'Everything lives in this browser. Download a backup regularly, or before switching browsers/devices — a backup file restores all your data.'}
             </div>
+            {!IS_SAMPLE && snapshots.length > 0 && (
+              <>
+                <div className="settings-hint">
+                  Before an app update changed how your data is stored, a safety copy was kept in this browser. You can
+                  download it, or delete it once you’re happy everything is fine.
+                </div>
+                {snapshots.map((snap) => (
+                  <div className="settings-data" key={snap.id}>
+                    <button className="btn sm" onClick={() => void onDownloadSnapshot(snap)}>
+                      Download copy from before the update ({new Date(snap.savedAt).toLocaleDateString()})
+                    </button>
+                    <button className="btn sm ghost" title="Delete this safety copy" onClick={() => void onDeleteSnapshot(snap)}>
+                      Delete
+                    </button>
+                  </div>
+                ))}
+              </>
+            )}
           </div>
           <div className="settings-row">
             <label className="settings-label">Sample</label>
@@ -228,6 +276,23 @@ export function SettingsMenu() {
             <label className="settings-label">About</label>
             <div className="settings-hint settings-about">
               Free and open source under the {LICENSE_NAME} license. No ads, no account, nothing locked.
+            </div>
+            <div className="settings-hint settings-about settings-credit">
+              This work includes material from the System Reference Documents 5.1 and 5.2 by Wizards of the Coast
+              LLC, available at{' '}
+              <a href="https://dnd.wizards.com/resources/systems-reference-document" target="_blank" rel="noopener noreferrer">
+                dnd.wizards.com
+              </a>{' '}
+              and{' '}
+              <a href="https://www.dndbeyond.com/srd" target="_blank" rel="noopener noreferrer">
+                dndbeyond.com/srd
+              </a>
+              , licensed under the{' '}
+              <a href="https://creativecommons.org/licenses/by/4.0/legalcode" target="_blank" rel="noopener noreferrer">
+                Creative Commons Attribution 4.0 International License
+              </a>
+              . Reformatted for use in this app. Unofficial fan content, not affiliated with or endorsed by Wizards of
+              the Coast.
             </div>
             {(SOURCE_URL || SUPPORT_URL) && (
               <div className="settings-data">

@@ -2900,6 +2900,7 @@ select.select {
 /* support links: quiet, never competing with the main actions */
 a.btn { text-decoration: none; }
 .settings-about { margin-bottom: 6px; }
+.settings-credit a { color: var(--accent-2); text-decoration: underline; }
 .feedback-support {
   margin-right: auto;
   align-self: center;

@@ -46,5 +46,10 @@ npm run build   # type-check + production build; must pass before a PR
 - Match the existing style: TypeScript, single quotes, no new formatter.
 - The app is local-first. Don't add network calls, analytics or third-party
   services without discussing it in an issue first.
-- If you change what's stored in IndexedDB, add a Dexie version migration so
-  existing users' data upgrades cleanly.
+- If you change what's stored in IndexedDB, add a new version to
+  `SCHEMA_HISTORY` in `src/lib/db.ts` (with an `upgrade` function if existing
+  rows change shape) so existing users' data upgrades cleanly. Never edit or
+  remove a version that has shipped. If the backup file's contents change
+  shape too, add a matching step to `BACKUP_MIGRATIONS` in
+  `src/lib/backup.ts`. The app already saves a safety copy of the data before
+  any upgrade runs.

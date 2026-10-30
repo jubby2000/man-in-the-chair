@@ -17,7 +17,7 @@ import type {
 } from '../types';
 import { loadCompendium, existingNames } from '../lib/compendium';
 import { buildImportedSource, countDuplicates } from '../lib/import';
-import { db, getKV, setKV } from '../lib/db';
+import { db, getKV, setKV, prepareDatabase } from '../lib/db';
 import { IS_SAMPLE } from '../lib/sample';
 import { seedSampleDb, sampleRuntimeState } from '../lib/sampleSeed';
 import { requestPersistentStorage } from '../lib/backup';
@@ -265,6 +265,9 @@ export const useStore = create<AppState>((set, get) => ({
   activePresetId: DEFAULT_PRESETS[0].id,
 
   init: async () => {
+    // open storage safely first; if it can't be used the app stays on the
+    // loading screen with DbNotice explaining why, rather than half-working
+    if (!(await prepareDatabase())) return;
     if (IS_SAMPLE) {
       // fresh copy of the sample on every load; never ask to keep it
       await seedSampleDb();

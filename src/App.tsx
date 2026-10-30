@@ -22,6 +22,7 @@ import { Toast } from './components/Toast';
 import { QuickRoll } from './components/QuickRoll';
 import { CommandPalette } from './components/CommandPalette';
 import { ConfirmDialog } from './components/ConfirmDialog';
+import { DbNotice } from './components/DbNotice';
 import { PromptDialog } from './components/PromptDialog';
 import { SettingsMenu } from './components/SettingsMenu';
 import { useThemeStore } from './theme/useThemeStore';
@@ -156,6 +157,7 @@ export default function App() {
     return (
       <div className="app" style={{ alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ color: 'var(--text-dim)' }}>Loading compendium…</div>
+        <DbNotice />
       </div>
     );
   }
@@ -288,6 +290,7 @@ export default function App() {
       <QuickRoll />
       <CommandPalette />
       <ConfirmDialog />
+      <DbNotice />
             <PromptDialog />
     </div>
   );

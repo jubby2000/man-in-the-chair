@@ -1,12 +1,31 @@
-import { db } from './db';
+import { db, CURRENT_SCHEMA, REAL_DB_NAME } from './db';
+import { exportRawBackup, BACKUP_APP } from './dbGuard';
 import type { ImportedSource, LayoutPreset, PartyMember } from '../types';
 
+/** Version of the backup FILE format (the envelope), not of the database. */
 const BACKUP_VERSION = 1;
-const APP = 'man-in-the-chair';
+const APP = BACKUP_APP;
+
+/**
+ * Reshape the contents of an OLDER backup so it fits the current database.
+ * Keyed by the schema version it upgrades TO: entry 2 turns schema-1 data into
+ * schema-2 data. Add an entry whenever a new SCHEMA_HISTORY version changes the
+ * shape of what a backup contains. Backups from before this existed carry no
+ * schemaVersion and are treated as schema 1.
+ */
+export const BACKUP_MIGRATIONS: Record<number, (data: BackupFile['data']) => BackupFile['data']> = {};
+
+export function migrateBackupData(data: BackupFile['data'], fromSchema: number): BackupFile['data'] {
+  let out = data;
+  for (let v = fromSchema + 1; v <= CURRENT_SCHEMA; v++) out = BACKUP_MIGRATIONS[v]?.(out) ?? out;
+  return out;
+}
 
 export interface BackupFile {
   app: string;
   version: number;
+  /** Database schema the contents were saved under. Absent in early backups (= 1). */
+  schemaVersion?: number;
   exportedAt: string;
   data: {
     imports: ImportedSource[];
@@ -42,24 +61,46 @@ export async function exportBackup(): Promise<BackupFile> {
   return {
     app: APP,
     version: BACKUP_VERSION,
+    schemaVersion: CURRENT_SCHEMA,
     exportedAt: new Date().toISOString(),
     data: { imports, layouts, party, kv },
   };
 }
 
-/** Trigger a browser download of the backup as a timestamped .json file. */
-export async function downloadBackup(): Promise<void> {
-  const backup = await exportBackup();
-  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+const stamp = () => new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');
+
+/** Save any JSON-able object as a file download. */
+export function downloadJson(filename: string, obj: unknown): void {
+  const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
-  const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');
   const a = document.createElement('a');
   a.href = url;
-  a.download = `man-in-the-chair-backup-${stamp}.json`;
+  a.download = filename;
   document.body.appendChild(a);
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
+}
+
+/** Trigger a browser download of the backup as a timestamped .json file. */
+export async function downloadBackup(): Promise<void> {
+  downloadJson(`man-in-the-chair-backup-${stamp()}.json`, await exportBackup());
+}
+
+/**
+ * Download whatever is stored, read as-is without upgrading it. For when the
+ * app can't open its data normally. Returns false if nothing is stored.
+ */
+export async function downloadRawBackup(): Promise<boolean> {
+  const raw = await exportRawBackup(REAL_DB_NAME);
+  if (!raw) return false;
+  downloadJson(`man-in-the-chair-recovered-${stamp()}.json`, raw);
+  return true;
+}
+
+/** Download a pre-upgrade safety copy (see dbGuard.snapshotBeforeUpgrade). */
+export function downloadSnapshot(name: string, backup: unknown): void {
+  downloadJson(`man-in-the-chair-before-update-${name}-${stamp()}.json`, backup);
 }
 
 export class BackupError extends Error {}
@@ -69,6 +110,14 @@ function validate(obj: unknown): BackupFile {
   if (!obj || typeof obj !== 'object') throw new BackupError('Not a valid backup file.');
   const b = obj as Partial<BackupFile>;
   if (b.app !== APP) throw new BackupError('This file is not a Man in the Chair backup.');
+  if (
+    (typeof b.version === 'number' && b.version > BACKUP_VERSION) ||
+    (typeof b.schemaVersion === 'number' && b.schemaVersion > CURRENT_SCHEMA)
+  ) {
+    throw new BackupError(
+      'This backup was made by a newer version of Man in the Chair. Reload the app to update, then try again.',
+    );
+  }
   if (!b.data || typeof b.data !== 'object') throw new BackupError('Backup is missing its data.');
   const d = b.data as BackupFile['data'];
   for (const k of ['imports', 'layouts', 'party', 'kv'] as const) {
@@ -97,7 +146,7 @@ export async function restoreBackup(text: string): Promise<RestoreCounts> {
     throw new BackupError("That file isn't valid JSON.");
   }
   const backup = validate(parsed);
-  const { imports, layouts, party, kv } = backup.data;
+  const { imports, layouts, party, kv } = migrateBackupData(backup.data, backup.schemaVersion ?? 1);
 
   await db.transaction('rw', db.imports, db.layouts, db.party, db.kv, async () => {
     await Promise.all([db.imports.clear(), db.layouts.clear(), db.party.clear(), db.kv.clear()]);
