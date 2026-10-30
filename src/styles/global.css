@@ -1209,6 +1209,21 @@ select.select {
   text-align: center;
   font-size: 16px;
 }
+.timer-chip {
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.timer-chip.done {
+  background: var(--danger);
+  color: #fff;
+  font-family: inherit;
+}
 .timer-controls {
   display: flex;
   gap: 8px;

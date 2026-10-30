@@ -1,9 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Panel } from '../components/Panel';
 import type { PanelComponentProps } from '../types';
 import { NumberInput } from '../components/NumberInput';
-
-type Mode = 'countdown' | 'stopwatch';
+import { useTimerStore, countdownLeft, stopwatchElapsed } from '../store/useTimerStore';
 
 const fmt = (totalSec: number): string => {
   const s = Math.max(0, Math.floor(totalSec));
@@ -15,59 +14,44 @@ const fmt = (totalSec: number): string => {
 };
 
 export function TimerPanel({ onClose }: PanelComponentProps) {
-  const [mode, setMode] = useState<Mode>('countdown');
-  const [mins, setMins] = useState(5);
-  const [secs, setSecs] = useState(0);
-  const [remaining, setRemaining] = useState(5 * 60); // seconds (countdown) / elapsed (stopwatch)
-  const [running, setRunning] = useState(false);
-  const [done, setDone] = useState(false);
-  const tick = useRef<number | null>(null);
+  const t = useTimerStore();
+  const { view: mode, countdown: cd, stopwatch: sw } = t;
 
-  // drive the clock while running
+  const cdRunning = cd.endAt !== null;
+  const swRunning = sw.startedAt !== null;
+
+  // Re-render a few times a second while either clock is running. The clocks
+  // themselves live in the store (they keep going with this panel closed).
+  const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
-    if (!running) return;
-    const started = Date.now();
-    const base = remaining;
-    tick.current = window.setInterval(() => {
-      const elapsed = (Date.now() - started) / 1000;
-      if (mode === 'countdown') {
-        const left = base - elapsed;
-        if (left <= 0) {
-          setRemaining(0);
-          setRunning(false);
-          setDone(true);
-        } else {
-          setRemaining(left);
-        }
-      } else {
-        setRemaining(base + elapsed);
-      }
-    }, 200);
-    return () => {
-      if (tick.current) window.clearInterval(tick.current);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [running, mode]);
+    setNow(Date.now());
+    if (!cdRunning && !swRunning) return;
+    const id = window.setInterval(() => setNow(Date.now()), 200);
+    return () => window.clearInterval(id);
+  }, [cdRunning, swRunning]);
 
-  const start = () => {
-    if (mode === 'countdown' && remaining <= 0) reset();
-    setDone(false);
-    setRunning(true);
+  const cdLeft = countdownLeft(cd, now);
+  const swElapsed = stopwatchElapsed(sw, now);
+
+  const running = mode === 'countdown' ? cdRunning : swRunning;
+  const shown = mode === 'countdown' ? cdLeft : swElapsed;
+  const done = mode === 'countdown' && cd.done;
+  const low = mode === 'countdown' && cdLeft <= 10 && cdLeft > 0 && cdRunning;
+
+  const start = mode === 'countdown' ? t.startCountdown : t.startStopwatch;
+  const pause = mode === 'countdown' ? t.pauseCountdown : t.pauseStopwatch;
+  const reset = mode === 'countdown' ? t.resetCountdown : t.resetStopwatch;
+
+  // What the tab you are NOT looking at is doing, so it is never out of sight.
+  const hiddenChip = (which: 'countdown' | 'stopwatch') => {
+    if (mode === which) return null;
+    if (which === 'countdown') {
+      if (cd.done) return <span className="timer-chip done">Time’s up</span>;
+      if (cdRunning) return <span className="timer-chip">{fmt(cdLeft)}</span>;
+      return null;
+    }
+    return swRunning ? <span className="timer-chip">{fmt(swElapsed)}</span> : null;
   };
-  const pause = () => setRunning(false);
-  const reset = () => {
-    setRunning(false);
-    setDone(false);
-    setRemaining(mode === 'countdown' ? mins * 60 + secs : 0);
-  };
-
-  // when the user edits the preset or switches mode while stopped, resync
-  useEffect(() => {
-    if (!running) setRemaining(mode === 'countdown' ? mins * 60 + secs : 0);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mins, secs, mode]);
-
-  const low = mode === 'countdown' && remaining <= 10 && remaining > 0;
 
   return (
     <Panel
@@ -77,22 +61,26 @@ export function TimerPanel({ onClose }: PanelComponentProps) {
         <>
           <button
             className={`btn sm ${mode === 'countdown' ? 'primary' : ''}`}
-            onClick={() => setMode('countdown')}
+            onClick={() => t.setView('countdown')}
+            title={cdRunning && mode !== 'countdown' ? 'Countdown is still running' : undefined}
           >
             Countdown
+            {hiddenChip('countdown')}
           </button>
           <button
             className={`btn sm ${mode === 'stopwatch' ? 'primary' : ''}`}
-            onClick={() => setMode('stopwatch')}
+            onClick={() => t.setView('stopwatch')}
+            title={swRunning && mode !== 'stopwatch' ? 'Stopwatch is still running' : undefined}
           >
             Stopwatch
+            {hiddenChip('stopwatch')}
           </button>
         </>
       }
     >
       <div className="timer-panel">
         <div className={`timer-display ${done ? 'done' : ''} ${low ? 'low' : ''}`}>
-          {fmt(remaining)}
+          {fmt(shown)}
         </div>
         {done && <div className="timer-done-label">Time's up</div>}
 
@@ -103,8 +91,8 @@ export function TimerPanel({ onClose }: PanelComponentProps) {
               <NumberInput
                 className="input"
                 min={0}
-                value={mins}
-                onChange={(e) => setMins(Math.max(0, parseInt(e.target.value, 10) || 0))}
+                value={cd.mins}
+                onChange={(e) => t.setPreset(Math.max(0, parseInt(e.target.value, 10) || 0), cd.secs)}
               />
             </label>
             <label>
@@ -113,9 +101,9 @@ export function TimerPanel({ onClose }: PanelComponentProps) {
                 className="input"
                 min={0}
                 max={59}
-                value={secs}
+                value={cd.secs}
                 onChange={(e) =>
-                  setSecs(Math.min(59, Math.max(0, parseInt(e.target.value, 10) || 0)))
+                  t.setPreset(cd.mins, Math.min(59, Math.max(0, parseInt(e.target.value, 10) || 0)))
                 }
               />
             </label>
@@ -134,14 +122,7 @@ export function TimerPanel({ onClose }: PanelComponentProps) {
         {mode === 'countdown' && !running && (
           <div className="timer-quick">
             {[1, 5, 10, 30].map((m) => (
-              <button
-                key={m}
-                className="btn sm"
-                onClick={() => {
-                  setMins(m);
-                  setSecs(0);
-                }}
-              >
+              <button key={m} className="btn sm" onClick={() => t.setPreset(m, 0)}>
                 {m}m
               </button>
             ))}
