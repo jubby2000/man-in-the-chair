@@ -9,6 +9,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
+    "clean": "node scripts/clean.mjs",
     "lint": "eslint . --ext ts,tsx",
     "normalize-srd": "node scripts/normalize-srd.mjs"
   },
