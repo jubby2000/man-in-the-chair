@@ -10,6 +10,7 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "clean": "node scripts/clean.mjs",
+    "clean:build": "node scripts/clean.mjs --build-only",
     "lint": "eslint . --ext ts,tsx",
     "normalize-srd": "node scripts/normalize-srd.mjs"
   },
