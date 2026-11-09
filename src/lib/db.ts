@@ -89,7 +89,21 @@ db.on('blocked', () => useDbStatus.getState().set('blocked'));
  * Keeps a copy of the data first if an upgrade is about to run. Returns false
  * (and puts the reason in useDbStatus) if the data can't be opened.
  */
-export async function prepareDatabase(): Promise<boolean> {
+let preparing: Promise<boolean> | null = null;
+
+/**
+ * Memoized: every caller (the app store, theme, dice set) waits on the SAME
+ * open. Reading prefs before this finished used to auto-open the database
+ * early; on a brand-new browser the safety probe below then deleted its empty
+ * probe database, which closed that early connection and killed the theme and
+ * dice-set reads mid-flight (theme never painted, dice never "loaded").
+ */
+export function prepareDatabase(): Promise<boolean> {
+  if (!preparing) preparing = openDatabaseSafely();
+  return preparing;
+}
+
+async function openDatabaseSafely(): Promise<boolean> {
   // Data from a NEWER version of the app: leave it completely alone.
   const stored = await storedSchemaVersion(REAL_DB_NAME);
   if (stored !== null && stored > CURRENT_SCHEMA) {
@@ -127,13 +141,25 @@ export async function setKV(key: string, value: unknown): Promise<void> {
 const appearanceDb: MitCDatabase = IS_SAMPLE ? new MitCDatabase(REAL_DB_NAME) : db;
 
 export async function getPref<T>(key: string, fallback: T): Promise<T> {
-  const rec = await appearanceDb.kv.get(key);
-  return rec ? (rec.value as T) : fallback;
+  // wait for the safe open first (see prepareDatabase); never throw, so a
+  // storage problem can't stop the theme or dice set from loading
+  try {
+    if (!(await prepareDatabase())) return fallback;
+    const rec = await appearanceDb.kv.get(key);
+    return rec ? (rec.value as T) : fallback;
+  } catch {
+    return fallback;
+  }
 }
 
 export async function setPref(key: string, value: unknown): Promise<void> {
-  await appearanceDb.kv.put({ key, value });
-  appearanceChannel?.postMessage(key);
+  try {
+    if (!(await prepareDatabase())) return;
+    await appearanceDb.kv.put({ key, value });
+    appearanceChannel?.postMessage(key);
+  } catch {
+    // preference not saved; the choice still applies for this visit
+  }
 }
 
 // Other open tabs/windows pick up appearance changes live.
