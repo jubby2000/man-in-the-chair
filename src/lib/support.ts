@@ -3,7 +3,8 @@
 // (e.g. as environment variables on the static host).
 
 /** Donation page (e.g. a Ko-fi URL). Empty = every Support link is hidden. */
-export const SUPPORT_URL: string = import.meta.env.VITE_SUPPORT_URL ?? '';
+export const SUPPORT_URL: string =
+  import.meta.env.VITE_SUPPORT_URL ?? 'https://github.com/sponsors/jubby2000';
 
 /** Public repository. Empty = the "Source code" link is hidden. */
 export const SOURCE_URL: string = import.meta.env.VITE_SOURCE_URL ?? '';

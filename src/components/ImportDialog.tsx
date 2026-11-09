@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { useStore } from '../store/useStore';
 import type { ImportStrategy } from '../types';
+import { EXAMPLE_JSON, EXAMPLE_XML, downloadText } from '../lib/importExamples';
 
 interface Pending {
   fileName: string;
@@ -66,6 +67,24 @@ export function ImportDialog({ onClose }: { onClose: () => void }) {
           Monsters, spells, items, races, classes, backgrounds, and feats are all read.
           Everything stays in your browser.
         </p>
+
+        <div className="example-row">
+          <span className="example-label">Not sure of the format? Grab an example:</span>
+          <button
+            type="button"
+            className="btn sm ghost"
+            onClick={() => downloadText('man-in-the-chair-example.xml', EXAMPLE_XML, 'application/xml')}
+          >
+            Example .xml
+          </button>
+          <button
+            type="button"
+            className="btn sm ghost"
+            onClick={() => downloadText('man-in-the-chair-example.json', EXAMPLE_JSON, 'application/json')}
+          >
+            Example .json
+          </button>
+        </div>
 
         {pending ? (
           <div className="dup-prompt">

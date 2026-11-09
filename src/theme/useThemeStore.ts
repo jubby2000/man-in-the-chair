@@ -17,7 +17,7 @@ interface ThemeState {
 }
 
 export const useThemeStore = create<ThemeState>((set, get) => ({
-  themeId: 'monera',
+  themeId: 'nord',
   customThemes: [],
 
   all: () => [...BUILT_IN_THEMES, ...get().customThemes],
@@ -28,7 +28,7 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
   },
 
   init: async () => {
-    const themeId = await getPref<string>('themeId', 'monera');
+    const themeId = await getPref<string>('themeId', 'nord');
     const customThemes = await getPref<VSCodeTheme[]>('customThemes', []);
     set({ themeId, customThemes });
     applyTheme(get().current());
@@ -56,7 +56,7 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
 
   removeCustomTheme: (id) => {
     const customThemes = get().customThemes.filter((t) => t.id !== id);
-    const themeId = get().themeId === id ? 'monera' : get().themeId;
+    const themeId = get().themeId === id ? 'nord' : get().themeId;
     set({ customThemes, themeId });
     void setPref('customThemes', customThemes);
     void setPref('themeId', themeId);
