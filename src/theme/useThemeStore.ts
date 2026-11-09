@@ -28,9 +28,14 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
   },
 
   init: async () => {
-    const themeId = await getPref<string>('themeId', 'nord');
-    const customThemes = await getPref<VSCodeTheme[]>('customThemes', []);
-    set({ themeId, customThemes });
+    try {
+      const themeId = await getPref<string>('themeId', 'nord');
+      const customThemes = await getPref<VSCodeTheme[]>('customThemes', []);
+      set({ themeId, customThemes });
+    } catch {
+      // storage unavailable (private window, blocked DB): keep the default
+    }
+    // always paint, so the colors can never lag behind the picker
     applyTheme(get().current());
     if (!listening) {
       listening = true;
@@ -63,3 +68,7 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
     applyTheme(get().current());
   },
 }));
+
+// Paint the default theme immediately, before React renders or storage is read.
+// A saved choice (if any) replaces it once init() finishes.
+applyTheme(useThemeStore.getState().current());
