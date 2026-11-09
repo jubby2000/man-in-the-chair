@@ -123,7 +123,7 @@ function labelQuaternion(normal: THREE.Vector3): THREE.Quaternion {
 /** One die: a mesh + a number label on every face, synced to its physics body. */
 function Die({ handle, set }: { handle: DieHandle; set: DiceSet }) {
   const groupRef = useRef<THREE.Group>(null);
-  const color = set.textureDataUrl ? '#ffffff' : set.perType?.[handle.sides] ?? set.body;
+  const color = set.textureDataUrl ? '#ffffff' : set.body;
   const geometry = useMemo(() => geometryFor(handle.sides), [handle.sides]);
   // d4: three corner numbers per face instead of one central label
   const d4Labels = useMemo(() => (handle.sides === 4 ? d4CornerLabels() : []), [handle.sides]);

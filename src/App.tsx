@@ -28,6 +28,7 @@ import { SettingsMenu } from './components/SettingsMenu';
 import { useThemeStore } from './theme/useThemeStore';
 import { useDiceSetStore } from './theme/diceSets';
 import { IS_SAMPLE, SAMPLE_BLOCKED_MESSAGE } from './lib/sample';
+import { SUPPORT_URL } from './lib/support';
 import { SampleBanner } from './components/SampleBanner';
 import { CornerCard } from './components/CornerCard';
 
@@ -65,6 +66,21 @@ function useContainerWidth() {
   return width;
 }
 
+/** Below this viewport width we stack panels in a single column instead of the
+ *  free-form drag grid: a 12-column grid is unusable on a tablet/phone. */
+const STACK_BELOW = 820;
+
+function useIsNarrow() {
+  const [narrow, setNarrow] = useState(() => window.innerWidth < STACK_BELOW);
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${STACK_BELOW - 1}px)`);
+    const onChange = () => setNarrow(mq.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  return narrow;
+}
+
 export default function App() {
   const ready = useStore((s) => s.ready);
   const init = useStore((s) => s.init);
@@ -83,9 +99,18 @@ export default function App() {
   const showToast = useStore((s) => s.showToast);
   const [showImport, setShowImport] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
+
+  // Feedback is opened from the Settings menu (and anywhere else) via an event,
+  // the same pattern as the ⌘K search. Keeps the top bar lean on mobile.
+  useEffect(() => {
+    const open = () => setShowFeedback(true);
+    window.addEventListener('mitc:open-feedback', open);
+    return () => window.removeEventListener('mitc:open-feedback', open);
+  }, []);
   const initTheme = useThemeStore((s) => s.init);
   const initDiceSet = useDiceSetStore((s) => s.init);
   const width = useContainerWidth();
+  const narrow = useIsNarrow();
 
   useEffect(() => {
     void init();
@@ -229,6 +254,21 @@ export default function App() {
 
         <div className="spacer" />
 
+        {SUPPORT_URL && (
+          <a
+            className="btn icon donate-btn"
+            href={SUPPORT_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="please don't make me go back to big tech"
+            aria-label="Support this project — please don't make me go back to big tech"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+            </svg>
+          </a>
+        )}
+
         {missingPanels.length > 0 && (
           <Dropdown<PanelType | ''>
             value={''}
@@ -248,36 +288,50 @@ export default function App() {
         >
           Import
         </button>
-        <button className="btn icon" title="Send feedback" aria-label="Send feedback" onClick={() => setShowFeedback(true)}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-          </svg>
-        </button>
         <SettingsMenu />
       </div>
 
       <div className="grid-wrap">
-        <GridLayout
-          className="layout"
-          layout={layout}
-          cols={12}
-          rowHeight={38}
-          width={width}
-          margin={[10, 10]}
-          draggableHandle=".drag-handle"
-          resizeHandles={['se', 'sw', 'ne', 'nw']}
-          onLayoutChange={onLayoutChange}
-          compactType="vertical"
-        >
-          {(active?.items ?? []).map((it) => {
-            const PanelComp = PANELS[it.panel];
-            return (
-              <div key={it.i} data-panel={it.panel}>
-                <PanelComp onClose={() => removePanel(it.i)} />
-              </div>
-            );
-          })}
-        </GridLayout>
+        {narrow ? (
+          // Tablet/phone: stack panels in one column, in their grid order
+          // (top-to-bottom, then left-to-right). Drag/resize is off — there's
+          // nothing to arrange in a single column — and each panel gets a
+          // natural height instead of the grid's fixed row units.
+          <div className="stack-layout">
+            {[...(active?.items ?? [])]
+              .sort((a, b) => a.y - b.y || a.x - b.x)
+              .map((it) => {
+                const PanelComp = PANELS[it.panel];
+                return (
+                  <div key={it.i} className="stack-item" data-panel={it.panel}>
+                    <PanelComp onClose={() => removePanel(it.i)} />
+                  </div>
+                );
+              })}
+          </div>
+        ) : (
+          <GridLayout
+            className="layout"
+            layout={layout}
+            cols={12}
+            rowHeight={38}
+            width={width}
+            margin={[10, 10]}
+            draggableHandle=".drag-handle"
+            resizeHandles={['se', 'sw', 'ne', 'nw']}
+            onLayoutChange={onLayoutChange}
+            compactType="vertical"
+          >
+            {(active?.items ?? []).map((it) => {
+              const PanelComp = PANELS[it.panel];
+              return (
+                <div key={it.i} data-panel={it.panel}>
+                  <PanelComp onClose={() => removePanel(it.i)} />
+                </div>
+              );
+            })}
+          </GridLayout>
+        )}
       </div>
 
       <Suspense fallback={null}>

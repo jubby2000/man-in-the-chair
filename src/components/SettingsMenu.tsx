@@ -274,6 +274,23 @@ export function SettingsMenu() {
             )}
           </div>
           <div className="settings-row">
+            <label className="settings-label">Feedback</label>
+            <div className="settings-data">
+              <button
+                className="btn sm"
+                onClick={() => {
+                  setOpen(false);
+                  window.dispatchEvent(new Event('mitc:open-feedback'));
+                }}
+              >
+                Send feedback…
+              </button>
+            </div>
+            <div className="settings-hint">
+              Report a bug or suggest an idea. Nothing is sent automatically — you review and send it from your own mail client.
+            </div>
+          </div>
+          <div className="settings-row">
             <label className="settings-label">About</label>
             <div className="settings-data">
               <button

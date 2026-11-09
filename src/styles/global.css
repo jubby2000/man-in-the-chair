@@ -221,6 +221,12 @@ button {
   padding: 6px 9px;
   line-height: 1;
 }
+/* Donate: a heart that warms to the "danger"/red accent on hover, since it's
+   the closest thing to a love color in every theme's palette. */
+.donate-btn:hover {
+  color: var(--danger, #ff6b7a);
+  border-color: var(--danger, #ff6b7a);
+}
 
 select.select {
   background: var(--bg-elev);
@@ -3005,4 +3011,165 @@ input[type='number']::-webkit-outer-spin-button { -webkit-appearance: none; marg
   border-radius: var(--radius-pill);
   background: var(--bg-elev);
   font-variant-numeric: tabular-nums;
+}
+
+/* ===================================================================== */
+/* Tablet & phone: single-column stack + larger tap targets.             */
+/* The free-form 12-column drag grid (App.tsx) is replaced by a stacked  */
+/* column below 820px; these rules handle the chrome around it.          */
+/* ===================================================================== */
+
+/* Stacked panel column (rendered instead of react-grid-layout when narrow). */
+.stack-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+}
+.stack-item {
+  /* Give each panel a comfortable reading height but let tall content scroll
+     inside its own body rather than stretching the whole column. */
+  height: 70vh;
+  max-height: 620px;
+  min-height: 300px;
+}
+
+@media (max-width: 819px) {
+  /* Two rows on mobile. Row 1: title (left) + search (right). Row 2: every
+     other action button. The preset tabs leave this bar entirely (fixed to
+     the bottom, below). The topbar wraps and we force the break after search
+     by making the spacer a full-width flex item. */
+  .topbar {
+    flex-wrap: wrap;
+    height: auto;
+    padding: 8px 12px;
+    gap: 10px 8px;
+    align-items: center;
+  }
+  .brand {
+    font-size: 16px;
+    flex-shrink: 1;
+    min-width: 0;
+    /* keep a long title from shoving the search button off the row */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  /* Search is the last item on row 1: push it to the right edge. */
+  .topbar .search-btn {
+    margin-left: auto;
+    flex-shrink: 0;
+    order: 1;
+  }
+  /* The spacer becomes the row break: full width, zero height, forcing every
+     item after it onto a second row. */
+  .topbar .spacer {
+    order: 2;
+    flex-basis: 100%;
+    height: 0;
+    margin: 0;
+  }
+  /* Everything after the spacer (donate, Add panel, Import, Settings) sits on
+     row 2, left-aligned and wrapping among themselves if still too wide. */
+  .topbar .donate-btn,
+  .topbar .dropdown,
+  .topbar .settings-menu,
+  .topbar > .btn:not(.search-btn) {
+    order: 3;
+  }
+
+  /* Preset tabs become a native-style bottom nav: a single horizontally
+     scrollable row pinned to the bottom of the screen, above everything. */
+  .preset-tabs {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 50;
+    flex-wrap: nowrap;
+    border-radius: 0;
+    border: none;
+    border-top: 1px solid var(--border-soft);
+    background: var(--bg-elev);
+    padding: 8px 10px;
+    gap: 6px;
+    /* scroll sideways instead of wrapping; hide the scrollbar but keep momentum */
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    /* keep tabs clear of the iOS home indicator / gesture bar */
+    padding-bottom: calc(8px + env(safe-area-inset-bottom));
+  }
+  .preset-tabs::-webkit-scrollbar {
+    display: none;
+  }
+  .preset-tab {
+    flex-shrink: 0;
+  }
+  /* The "new preset" + button sits inside the scrolling row at the end. */
+  .preset-tabs .btn.sm.ghost {
+    flex-shrink: 0;
+  }
+  /* Leave room at the bottom of the panel column so the last panel isn't
+     hidden behind the fixed tab bar. */
+  .stack-layout {
+    padding-bottom: calc(76px + env(safe-area-inset-bottom));
+  }
+
+  /* 44px minimum tap target (Apple HIG / WCAG 2.5.5) for every control a
+     finger has to hit. Pills grow via padding; icon buttons get a floor. */
+  .btn,
+  .preset-tab,
+  select.select {
+    min-height: 44px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+  .btn.icon {
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .btn.sm {
+    min-height: 40px;
+  }
+
+  /* The preset delete "✕" is always visible on touch (no hover to reveal it)
+     and big enough to hit without zooming. */
+  .preset-tab .mini {
+    opacity: 0.7;
+    min-width: 28px;
+    min-height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+  }
+}
+
+/* Touch devices of any width: never let a press on a panel-header control or a
+   draggable header start a text selection, and keep the browser from hijacking
+   a vertical drag as a scroll gesture on the grid header. */
+@media (hover: none) {
+  .panel-header .tools,
+  .panel-header .tools * {
+    touch-action: manipulation;
+  }
+}
+
+/* Import dialog: "grab an example file" row. */
+.example-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 14px;
+}
+.example-row .example-label {
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-right: 2px;
 }

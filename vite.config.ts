@@ -17,8 +17,8 @@ export default defineConfig({
         name: 'Man in the Chair',
         short_name: 'MitC',
         description: 'A modern, local-first DM screen for D&D 5e.',
-        theme_color: '#050506',
-        background_color: '#050506',
+        theme_color: '#2e3440',
+        background_color: '#2e3440',
         display: 'standalone',
         orientation: 'landscape',
         icons: [

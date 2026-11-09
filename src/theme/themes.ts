@@ -20,7 +20,7 @@ export interface VSCodeTheme {
 export const BUILT_IN_THEMES: VSCodeTheme[] = [
   {
     id: 'monera',
-    name: 'Monera (default)',
+    name: 'Monera',
     type: 'dark',
     colors: {
       'editor.background': '#050506',
@@ -120,7 +120,7 @@ export const BUILT_IN_THEMES: VSCodeTheme[] = [
   },
   {
     id: 'nord',
-    name: 'Nord',
+    name: 'Nord (default)',
     type: 'dark',
     colors: {
       'editor.background': '#2e3440',

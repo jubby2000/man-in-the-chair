@@ -24,9 +24,12 @@ export function Panel({ title, children, tools, flush, onClose, scrollResetKey }
         <span className="panel-title">{title}</span>
         <div
           className="tools"
-          // The header is the drag handle; without this, mousedown on a tool
-          // button starts a panel drag and the click never fires.
+          // The header is the drag handle; without this, a press on a tool
+          // button starts a panel drag and the click never fires. Stop both
+          // pointer kinds: mouse (desktop) and touch (tablet/phone), where the
+          // grid starts dragging on touchstart rather than mousedown.
           onMouseDown={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
         >
           {tools}
           {onClose && (
