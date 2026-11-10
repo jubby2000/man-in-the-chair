@@ -1,0 +1,37 @@
+# Adds an "area: <topic>" label to issues opened from the issue forms (which
+# the in-app feedback dialog fills in). The kind label (bug / enhancement /
+# question) comes from the form itself.
+#
+# Issue forms only apply labels that already exist, and anyone can open an
+# issue, so the area is checked against a fixed list before it becomes a label.
+name: Label feedback issues
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  issues: write
+
+jobs:
+  label:
+    if: contains(github.event.issue.body, '### Area')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const AREAS = ['panels', 'dice', 'import', 'backup', 'layouts', 'appearance', 'search', 'general'];
+            const body = context.payload.issue.body || '';
+            const match = body.match(/###\s*Area\s*\n+\s*([A-Za-z-]+)/);
+            const area = match ? match[1].toLowerCase() : '';
+            if (!AREAS.includes(area)) {
+              core.info(`No valid area found (got "${area}"); leaving labels alone.`);
+              return;
+            }
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.issue.number,
+              labels: [`area: ${area}`],
+            });

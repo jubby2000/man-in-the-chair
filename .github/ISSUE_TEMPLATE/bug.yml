@@ -1,0 +1,27 @@
+name: Something's broken
+description: Report a bug in Man in the Chair.
+labels: [bug]
+body:
+  - type: input
+    id: area
+    attributes:
+      label: Area
+      description: "Filled in by the app's feedback form. One of: panels, dice, import, backup, layouts, appearance, search, general."
+      placeholder: general
+  - type: input
+    id: topic
+    attributes:
+      label: Topic
+      placeholder: Panels › Initiative
+  - type: textarea
+    id: message
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Technical details
+      description: App version, ruleset, open panels, screen size and browser. Never campaign data.
+      render: text

@@ -14,4 +14,6 @@ interface ImportMetaEnv {
   readonly VITE_SUPPORT_URL?: string;
   /** Public repository shown as "Source code" in Settings. */
   readonly VITE_SOURCE_URL?: string;
+  /** "owner/name" GitHub repo that in-app feedback opens issues on. */
+  readonly VITE_FEEDBACK_REPO?: string;
 }

@@ -131,6 +131,41 @@ export function buildFeedback(d: FeedbackDraft, c: FeedbackContext): { subject: 
   return { subject, body: parts.join('\n') };
 }
 
+/**
+ * GitHub repo ("owner/name") that feedback issues go to. Empty hides the
+ * GitHub button. Override at build time with VITE_FEEDBACK_REPO (forks).
+ */
+export const FEEDBACK_REPO: string = import.meta.env.VITE_FEEDBACK_REPO ?? 'jubby2000/man-in-the-chair';
+
+/** Issue form per feedback kind; each form applies its own label. */
+const ISSUE_TEMPLATE: Record<FeedbackKind, string> = {
+  bug: 'bug.yml',
+  idea: 'idea.yml',
+  other: 'other.yml',
+};
+
+/** GitHub rejects very long URLs; stay well under its limit. */
+export const ISSUE_URL_SAFE_LENGTH = 7000;
+
+/**
+ * A "new issue" link with the matching issue form already filled in. The user
+ * reviews it on GitHub and presses Submit; nothing is sent by the app. The
+ * form adds the kind label, and .github/workflows/label-feedback.yml adds the
+ * "area: <topic>" label from the Area field.
+ */
+export function githubIssueUrl(repo: string, d: FeedbackDraft, c: FeedbackContext): string {
+  const firstLine = d.message.trim().split('\n')[0].slice(0, 70);
+  const params = new URLSearchParams({
+    template: ISSUE_TEMPLATE[d.kind],
+    title: `${topicLabel(d)}: ${firstLine}`,
+    area: d.category || 'general',
+    topic: topicLabel(d),
+    message: d.message.trim(),
+  });
+  if (d.includeDetails) params.set('details', detailsText(c));
+  return `https://github.com/${repo}/issues/new?${params.toString()}`;
+}
+
 /** Some mail clients truncate or reject very long mailto: URLs. */
 export const MAILTO_SAFE_LENGTH = 1800;
 

@@ -1,0 +1,27 @@
+name: Idea / request
+description: Suggest a feature or an improvement.
+labels: [enhancement]
+body:
+  - type: input
+    id: area
+    attributes:
+      label: Area
+      description: "Filled in by the app's feedback form. One of: panels, dice, import, backup, layouts, appearance, search, general."
+      placeholder: general
+  - type: input
+    id: topic
+    attributes:
+      label: Topic
+      placeholder: Dice & rolling › Dice sound
+  - type: textarea
+    id: message
+    attributes:
+      label: Tell us more
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Technical details
+      description: App version, ruleset, open panels, screen size and browser. Never campaign data.
+      render: text
