@@ -7,9 +7,12 @@ import {
   FEEDBACK_CATEGORIES,
   FEEDBACK_EMAIL,
   FEEDBACK_KINDS,
+  FEEDBACK_REPO,
+  ISSUE_URL_SAFE_LENGTH,
   MAILTO_SAFE_LENGTH,
   buildFeedback,
   detailsText,
+  githubIssueUrl,
   mailtoUrl,
   type FeedbackContext,
   type FeedbackKind,
@@ -48,6 +51,11 @@ export function FeedbackDialog({ onClose }: { onClose: () => void }) {
   const { subject, body } = buildFeedback({ kind, category, sub, message, includeDetails }, context);
   const mailto = FEEDBACK_EMAIL ? mailtoUrl(FEEDBACK_EMAIL, subject, body) : '';
   const tooLongForMail = mailto.length > MAILTO_SAFE_LENGTH;
+  const issueUrl = FEEDBACK_REPO
+    ? githubIssueUrl(FEEDBACK_REPO, { kind, category, sub, message, includeDetails }, context)
+    : '';
+  const tooLongForGithub = issueUrl.length > ISSUE_URL_SAFE_LENGTH;
+  const canGithub = ready && !!issueUrl && !tooLongForGithub;
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -156,6 +164,14 @@ export function FeedbackDialog({ onClose }: { onClose: () => void }) {
           </div>
         </div>
 
+        {FEEDBACK_REPO && (
+          <div className="settings-hint">
+            {tooLongForGithub && ready
+              ? 'This is too long to open on GitHub in one go — shorten it, or use Copy and paste it into a new issue.'
+              : 'Opens a filled-in issue on GitHub in a new tab. You’ll need a GitHub account; review it there and press Submit.'}
+          </div>
+        )}
+
         {FEEDBACK_EMAIL && tooLongForMail && ready && (
           <div className="settings-hint">
             This is long enough that some email apps may cut it off — use Copy and paste it into
@@ -186,6 +202,21 @@ export function FeedbackDialog({ onClose }: { onClose: () => void }) {
               }}
             >
               Open in email
+            </a>
+          )}
+          {FEEDBACK_REPO && (
+            <a
+              className={`btn primary ${canGithub ? '' : 'disabled'}`}
+              href={canGithub ? issueUrl : undefined}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-disabled={!canGithub}
+              onClick={(e) => {
+                if (!canGithub) e.preventDefault();
+                else onClose();
+              }}
+            >
+              Open GitHub issue
             </a>
           )}
         </div>
